@@ -71,3 +71,20 @@ def test_delete_doc_removes_from_index():
     assert client.delete(f"/api/docs/{doc_id}").status_code == 200
     idx2 = VectorIndex(f"{settings.data_dir}/chroma")
     assert not any("加班费" in h["text"] for h in idx2.search("加班费怎么算"))
+
+def test_same_name_replace_old():
+    """同名文档再次上传 → 旧文档被替换，检索只剩新内容（增量更新）"""
+    r1 = client.post("/api/docs", files={"file": ("同名.txt", "旧内容：苹果是红色水果。".encode(), "text/plain")})
+    assert r1.status_code == 200
+    d1 = r1.json()["id"]
+    r2 = client.post("/api/docs", files={"file": ("同名.txt", "新内容：香蕉是黄色水果。".encode(), "text/plain")})
+    d2 = r2.json()["id"]
+    assert d1 != d2
+
+    from app.config import settings
+    from app.knowledge.indexer import VectorIndex
+
+    idx = VectorIndex(f"{settings.data_dir}/chroma")
+    assert not idx.search("苹果"), "旧文档内容不应再被检索到（同名替换失败）"
+    hits = idx.search("香蕉")
+    assert hits and any("香蕉" in h["text"] for h in hits), "新内容应可检索"

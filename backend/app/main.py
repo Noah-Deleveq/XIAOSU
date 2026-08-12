@@ -12,6 +12,21 @@ from app.mock_api.router import router as mock_router
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # 日志落盘（logs/app.log），钉钉/uvicorn/问答日志都会写入
+    import logging
+    from pathlib import Path
+
+    log_dir = Path(settings.log_dir)
+    log_dir.mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        handlers=[
+            logging.FileHandler(log_dir / "app.log", encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+    )
+
     # 启动钉钉 Stream 机器人（长连接，独立线程）
     import threading
 

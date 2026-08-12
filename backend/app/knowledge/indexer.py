@@ -86,8 +86,11 @@ class VectorIndex:
         )
 
     def index_doc(self, doc_id: str, name: str, text: str) -> int:
-        """索引文档；同名重复索引先清旧（增量替换）"""
+        """索引文档；同名文档先清旧（增量替换），同 id 也清旧"""
         self.delete_doc(doc_id)
+        for old_id, old_name in list(self._doc_names.items()):
+            if old_name == name and old_id != doc_id:
+                self.delete_doc(old_id)
         chunks = chunk_text(text)
         if not chunks:
             return 0
