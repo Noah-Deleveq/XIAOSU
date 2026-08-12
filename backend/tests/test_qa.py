@@ -1,16 +1,14 @@
 """问答核心测试：用 Fake LLM，不依赖真实 API"""
-
 from fastapi.testclient import TestClient
 
 from app.main import app
-
 
 client = TestClient(app)
 
 
 class _FakeChoice:
     def __init__(self, content: str) -> None:
-        self.message = type("M", (), {"content": content})()
+        self.message = type("M", (), {"content": content, "tool_calls": None})()
 
 
 class _FakeResp:
@@ -19,10 +17,11 @@ class _FakeResp:
 
 
 class _FakeClient:
-    """Fake OpenAI client：记录 messages，返回固定答案"""
+    """Fake OpenAI client：记录 messages，返回可配置的固定答案"""
 
-    def __init__(self) -> None:
+    def __init__(self, content: str = "根据《员工手册》，员工每年享有 10 天带薪年假 [1]。") -> None:
         self.last_messages: list[dict] = []
+        self._content = content
 
     @property
     def chat(self):
@@ -34,8 +33,7 @@ class _FakeClient:
 
     def create(self, **kwargs):
         self.last_messages = kwargs.get("messages", [])
-        content = "根据《员工手册》，员工每年享有 10 天带薪年假 [1]。"
-        return _FakeResp(content)
+        return _FakeResp(self._content)
 
 
 def _prepare_doc() -> None:
@@ -49,12 +47,12 @@ def _prepare_doc() -> None:
 def test_chat_answer_with_reference():
     """有检索结果 → 返回答案 + 引用 + 不拒答"""
     _prepare_doc()
-    fake = _FakeClient()
     from app.agent.qa import QaEngine
+    from app.config import settings
     from app.knowledge.indexer import VectorIndex
     from app.session.store import SessionStore
-    from app.config import settings
 
+    fake = _FakeClient()
     engine = QaEngine(
         VectorIndex(f"{settings.data_dir}/chroma"),
         SessionStore(f"{settings.data_dir}/sessions.db"),
@@ -64,22 +62,21 @@ def test_chat_answer_with_reference():
     assert result["refused"] is False
     assert result["references"], "应有引用"
     assert "10 天" in result["references"][0]["text"]
-    # prompt 里应包含检索片段与问题
     joined = "\n".join(m["content"] for m in fake.last_messages)
     assert "员工手册" in joined and "年假" in joined
 
 
 def test_chat_refused_when_no_hit():
-    """无检索结果 → 直接拒答，不调 LLM"""
+    """无检索结果且模型说没找到 → 拒答"""
     from app.agent.qa import QaEngine
+    from app.config import settings
     from app.knowledge.indexer import VectorIndex
     from app.session.store import SessionStore
-    from app.config import settings
 
     engine = QaEngine(
         VectorIndex(f"{settings.data_dir}/chroma"),
         SessionStore(f"{settings.data_dir}/sessions.db"),
-        client=_FakeClient(),
+        client=_FakeClient(content="文档里没找到相关内容。"),
     )
     result = engine.answer("u1", "s2", "我们公司CEO的家庭住址是？")
     assert result["refused"] is True
@@ -90,9 +87,9 @@ def test_chat_multiturn_keeps_history():
     """多轮对话：第二轮 prompt 应包含第一轮的历史"""
     _prepare_doc()
     from app.agent.qa import QaEngine
+    from app.config import settings
     from app.knowledge.indexer import VectorIndex
     from app.session.store import SessionStore
-    from app.config import settings
 
     fake = _FakeClient()
     sessions = SessionStore(f"{settings.data_dir}/sessions.db")
