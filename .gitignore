@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 密钥与配置
+.env
+
+# 运行时数据（上传文档、向量库、SQLite）
+backend/data/
+backend/logs/
+
+# Node
+web/node_modules/
+web/dist/

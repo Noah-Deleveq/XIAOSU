@@ -1,0 +1,19 @@
+"""小苏 · FastAPI 应用入口"""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
+
+app = FastAPI(title="小苏 AI 助手", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/health")
+def health() -> dict:
+    return {"ok": True, "service": "xiaosu", "env": settings.app_env}
