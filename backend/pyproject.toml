@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "dingtalk-stream>=0.24.3",
+    "fastmcp[server]>=2.12.0",
     "fastapi>=0.141.1",
     "jieba>=0.42.1",
     "openai>=2.54.0",

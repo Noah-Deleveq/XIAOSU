@@ -16,3 +16,9 @@ class ChatRequest(BaseModel):
     user_id: str
     session_id: str
     message: str
+
+
+class ProviderSwitch(BaseModel):
+    """切换 LLM 供应商（多模型适配）"""
+
+    name: str

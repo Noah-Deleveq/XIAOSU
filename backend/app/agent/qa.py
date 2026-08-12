@@ -2,8 +2,10 @@
 from openai import OpenAI
 
 from app.config import settings
+from app.cost import estimate_cost
 from app.knowledge.indexer import VectorIndex
 from app.session.store import SessionStore
+from app import state
 from app.tools.registry import TOOLS, execute_tool
 
 SYSTEM_PROMPT = """你是公司内部 AI 助手「小苏」，负责根据公司文档与内部系统回答员工问题。
@@ -19,13 +21,25 @@ class QaEngine:
     def __init__(self, index: VectorIndex, sessions: SessionStore, client: OpenAI | None = None) -> None:
         self._index = index
         self._sessions = sessions
-        self._client = client or OpenAI(
-            api_key=settings.llm_api_key or "sk-none",
-            base_url=settings.llm_base_url,
-        )
-        self._model = settings.llm_model
+        self._provided_client = client
+        self._active_provider: tuple | None = None
+        self._client: OpenAI | None = None
+        self._model = ""
+
+    def _ensure_client(self) -> None:
+        """按当前激活供应商构建 client；供应商/Key/模型变化时自动重建（运行时切换生效）"""
+        p = settings.get_provider(state.current_provider)
+        key = (p.api_key, p.base_url, p.model)
+        if key != self._active_provider:
+            self._active_provider = key
+            self._client = self._provided_client or OpenAI(
+                api_key=p.api_key or "sk-none",
+                base_url=p.base_url,
+            )
+            self._model = p.model
 
     def answer(self, user_id: str, session_id: str, question: str) -> dict:
+        self._ensure_client()
         hits = self._index.search(question, k=4)
         references = [
             {
@@ -48,23 +62,42 @@ class QaEngine:
             user_content = f"【参考文档】\n{context}\n\n【问题】{question}"
         messages.append({"role": "user", "content": user_content})
 
-        answer, used_tool = self._call_llm_with_tools(messages)
+        answer, used_tool, tools_used, usage = self._call_llm_with_tools(messages)
         self._sessions.append(user_id, session_id, question, answer)
 
         # 拒答判定：没调工具且模型明确说没找到
         refused = (not used_tool) and any(
             k in answer for k in ("文档里没找到", "没有找到", "无法回答")
         )
+        cost = estimate_cost(self._model, usage)
+        self._sessions.log_turn(
+            user_id=user_id,
+            session_id=session_id,
+            question=question,
+            answer=answer,
+            used_tool=used_tool,
+            refused=refused,
+            provider=state.current_provider,
+            usage=usage,
+            cost=cost,
+        )
         return {
             "answer": answer,
             "references": references,
             "refused": refused,
+            "used_tool": used_tool,
+            "tools_used": tools_used,
+            "usage": usage,
+            "cost": cost,
+            "provider": state.current_provider,
             "session_id": session_id,
         }
 
-    def _call_llm_with_tools(self, messages: list[dict]) -> tuple[str, bool]:
-        """function calling 循环：模型可多次调工具，直到给出最终答案"""
+    def _call_llm_with_tools(self, messages: list[dict]) -> tuple[str, bool, list[str], dict]:
+        """function calling 循环：模型可多次调工具，直到给出最终答案。返回 (答案, 是否调工具, 工具名列表, usage 汇总)"""
         used_tool = False
+        tools_used: list[str] = []
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         for _ in range(5):
             resp = self._client.chat.completions.create(
                 model=self._model,
@@ -73,9 +106,14 @@ class QaEngine:
                 temperature=0.3,
                 max_tokens=800,
             )
+            u = getattr(resp, "usage", None)
+            if u is not None:
+                usage["prompt_tokens"] += getattr(u, "prompt_tokens", 0) or 0
+                usage["completion_tokens"] += getattr(u, "completion_tokens", 0) or 0
+                usage["total_tokens"] += getattr(u, "total_tokens", 0) or 0
             msg = resp.choices[0].message
             if not msg.tool_calls:
-                return msg.content or "", used_tool
+                return msg.content or "", used_tool, tools_used, usage
             used_tool = True
             # 回传 assistant 的 tool_calls
             messages.append(
@@ -96,8 +134,10 @@ class QaEngine:
                 }
             )
             for tc in msg.tool_calls:
-                result = execute_tool(tc.function.name, tc.function.arguments or "")
+                name = tc.function.name
+                tools_used.append(name)
+                result = execute_tool(name, tc.function.arguments or "")
                 messages.append(
                     {"role": "tool", "tool_call_id": tc.id, "content": result}
                 )
-        return "抱歉，处理超时了。", used_tool
+        return "抱歉，处理超时了。", used_tool, tools_used, usage

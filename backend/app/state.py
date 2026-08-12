@@ -7,3 +7,6 @@ from app.session.store import SessionStore
 index = VectorIndex(f"{settings.data_dir}/chroma")
 sessions = SessionStore(f"{settings.data_dir}/sessions.db")
 docs = DocStore(f"{settings.data_dir}/docs.db")
+
+# 运行时 LLM 供应商（默认取 .env 的 LLM_PROVIDER，可在 Web 后台切换，重启后恢复 .env 值）
+current_provider: str = settings.llm_provider
