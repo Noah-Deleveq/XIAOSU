@@ -44,13 +44,6 @@ class Settings(BaseSettings):
     dingtalk_app_key: str = ""
     dingtalk_app_secret: str = ""
 
-    # 企业微信（自建应用回调模式）
-    wecom_corp_id: str = ""
-    wecom_agent_id: str = ""
-    wecom_secret: str = ""
-    wecom_token: str = ""
-    wecom_aes_key: str = ""
-
     # 飞书（WebSocket 长连接）
     feishu_app_id: str = ""
     feishu_app_secret: str = ""

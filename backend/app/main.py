@@ -8,7 +8,6 @@ from app.agent.router import router as agent_router
 from app.config import settings
 from app.knowledge.router import router as knowledge_router
 from app.mock_api.router import router as mock_router
-from app.im.wecom_bot import router as wecom_router
 
 
 @asynccontextmanager
@@ -51,7 +50,6 @@ app.add_middleware(
 app.include_router(knowledge_router)
 app.include_router(agent_router)
 app.include_router(mock_router)
-app.include_router(wecom_router)
 
 
 @app.get("/api/health")

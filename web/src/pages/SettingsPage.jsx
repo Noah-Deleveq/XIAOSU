@@ -97,10 +97,6 @@ export default function SettingsPage() {
           value={settings?.dingtalk_configured ? '✅ 已配置' : '⚠️ 未配置（填 .env 后重启）'}
         />
         <Row
-          label="企业微信机器人"
-          value={settings?.wecom_configured ? '✅ 已配置' : '⚠️ 未配置（填 .env 后重启）'}
-        />
-        <Row
           label="飞书机器人"
           value={settings?.feishu_configured ? '✅ 已配置' : '⚠️ 未配置（填 .env 后重启）'}
         />
@@ -116,6 +112,7 @@ export default function SettingsPage() {
           <li><code className="bg-slate-100 px-1 rounded">LLM_PROVIDER</code> — 默认供应商（deepseek / zhipu / dashscope）</li>
           <li><code className="bg-slate-100 px-1 rounded">DEEPSEEK_API_KEY</code> / <code className="bg-slate-100 px-1 rounded">ZHIPU_API_KEY</code> / <code className="bg-slate-100 px-1 rounded">DASHSCOPE_API_KEY</code> — 各家 Key</li>
           <li><code className="bg-slate-100 px-1 rounded">DINGTALK_APP_KEY/SECRET</code> — 钉钉机器人凭证</li>
+          <li><code className="bg-slate-100 px-1 rounded">FEISHU_APP_ID/SECRET</code> — 飞书机器人凭证</li>
         </ul>
         <p className="text-xs text-slate-400 mt-3">修改 .env 后需重启后端生效。</p>
       </div>

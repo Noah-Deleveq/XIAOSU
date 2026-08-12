@@ -7,7 +7,7 @@
 - 后端：Python 3.11+ / FastAPI / uv
 - 问答：OpenAI 兼容 API（DeepSeek 等）+ function calling
 - 知识库：jieba 中文分词 + BM25 检索（本地 JSON 持久化，零外部服务）+ pypdf / python-docx（PDF/Word/MD/TXT）
-- IM：钉钉官方 **Stream 模式**（长连接，无需公网 IP/域名）+ 飞书 **WebSocket 长连接**（无需公网 URL）+ 企业微信（可选回调适配）
+- IM：钉钉官方 **Stream 模式**（长连接，无需公网 IP/域名）+ 飞书 **WebSocket 长连接**（无需公网 URL）
 - 前端：React + Vite（管理后台）
 - MCP：fastmcp（Claude Desktop / Cursor 可调）
 
@@ -33,7 +33,7 @@
 - 智能问答：RAG 检索 + 引用来源（Web 可点击查看原文并高亮）+ 拒答 + 多轮（按用户隔离）+ 流式输出（Web SSE `/api/chat/stream`、钉钉 AI 卡片打字机、飞书 AI 卡片打字机）
 - 文件上传问答：上传 Markdown/TXT/PDF/Word 后直接针对该文件提问，同样支持流式输出
 - 工具调用：员工信息 / 考勤 / 销售订单 / 当前时间（mock 内部 API）
-- IM 多端：钉钉 Stream + 飞书 WebSocket 长连接共用同一套问答引擎（企业微信回调适配也已提供）
+- IM 多端：钉钉 Stream + 飞书 WebSocket 长连接共用同一套问答引擎
 - 对话日志：`/api/logs` 全量查看（含 Token / 成本 / 工具调用）
 - 可观测性：`/api/traces` 记录每次问答/上传的耗时、Token、成本、工具与错误，后台可查看请求链路
 - 错误容错：LLM 超时/限流自动重试，重试失败后降级为友好提示，不直接 500
@@ -63,12 +63,6 @@ backend/app/
 - 配置：`backend/.env` 里 `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET`
 - 消息流：@小苏 → 去 @ → RAG/工具 → AI 卡片打字机回复（含引用来源；卡片失败自动回退文本）
 - 流式卡片走钉钉 OpenAPI；卡片不可用时回退 session_webhook 文本回复
-
-## 企业微信集成
-
-- 配置：`backend/.env` 里 `WECOM_CORP_ID` / `WECOM_AGENT_ID` / `WECOM_SECRET` / `WECOM_TOKEN` / `WECOM_AES_KEY`
-- 回调地址：`https://你的域名/api/im/wecom`，用于企业微信后台 URL 验证和消息接收
-- 消息流：员工发消息 → 企业微信回调 → 小苏问答引擎 → 通过企业微信 API 主动回复（含引用来源）
 
 ## 飞书集成
 
@@ -104,7 +98,7 @@ backend/app/
 
 ### 多端 IM 接入
 
-已接入 **钉钉 + 飞书**，两者共用同一套问答引擎、会话存储与可观测性；飞书采用 WebSocket 长连接，无需公网 URL。企业微信回调适配也已提供，可作为可选第三种接入。
+已接入 **钉钉 + 飞书**，两者共用同一套问答引擎、会话存储与可观测性；飞书采用 WebSocket 长连接，无需公网 URL。
 
 ### 多模型适配（≥2 家供应商）
 

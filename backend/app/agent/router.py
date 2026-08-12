@@ -268,19 +268,12 @@ def logs() -> dict:
 
 @router.get("/api/settings")
 def settings_get() -> dict:
-    """查看可用供应商 / 当前激活 / 钉钉接入状态"""
+    """查看可用供应商 / 当前激活 / 钉钉与飞书接入状态"""
     return {
         "providers": settings.provider_names(),
         "current": state.current_provider,
         "dingtalk_configured": bool(
             settings.dingtalk_app_key and settings.dingtalk_app_secret
-        ),
-        "wecom_configured": bool(
-            settings.wecom_corp_id
-            and settings.wecom_agent_id
-            and settings.wecom_secret
-            and settings.wecom_token
-            and settings.wecom_aes_key
         ),
         "feishu_configured": bool(
             settings.feishu_app_id and settings.feishu_app_secret
