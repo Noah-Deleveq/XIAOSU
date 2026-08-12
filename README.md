@@ -13,7 +13,7 @@
 ## 快速开始
 
 1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key、钉钉 AppKey/Secret
-2. 安装依赖：`cd backend && uv sync`
+2. 安装依赖：`cd backend && uv sync`；前端 `cd web && pnpm install`（pnpm，禁止 npm）
 3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`
    - HTTP 服务：http://localhost:8000（接口文档 /docs）
    - 钉钉机器人：启动后自动连接，钉钉里 **@小苏** 提问即可（单聊/群聊都行）
