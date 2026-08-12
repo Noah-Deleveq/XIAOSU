@@ -44,12 +44,12 @@ class XiaoSuBot(ChatbotHandler):
         try:
             result = _engine.answer(user_id, session_id, question)
             reply = build_reply(result)
-            msg.chatbot.reply_text(reply, msg)
+            self.reply_text(reply, msg)
             logger.info("回答 %s: %s -> %s", user_id, question[:30], reply[:60])
         except Exception as e:  # noqa: BLE001
             logger.exception("处理消息失败")
             try:
-                msg.chatbot.reply_text(f"抱歉，处理你的问题出错了：{e}", msg)
+                self.reply_text(f"抱歉，处理你的问题出错了：{e}", msg)
             except Exception:  # noqa: BLE001
                 pass
         return AckMessage.STATUS_OK, "OK"
