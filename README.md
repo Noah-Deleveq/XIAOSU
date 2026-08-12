@@ -11,6 +11,10 @@
 - 前端：React + Vite（管理后台）
 - MCP：fastmcp（Claude Desktop / Cursor 可调）
 
+## 开源与参考声明
+
+应用代码为原创；依赖、官方 SDK 与接口文档来源见 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)。
+
 ## 快速开始
 
 1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key（可配多家供应商）、钉钉 AppKey/Secret
