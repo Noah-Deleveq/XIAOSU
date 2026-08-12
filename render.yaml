@@ -9,6 +9,12 @@ services:
     envVars:
       - key: LLM_PROVIDER
         value: deepseek
+      - key: PYTHONIOENCODING
+        value: utf-8
+      - key: LANG
+        value: C.UTF-8
+      - key: LC_ALL
+        value: C.UTF-8
       - key: DEEPSEEK_API_KEY
         sync: false
       - key: DINGTALK_APP_KEY

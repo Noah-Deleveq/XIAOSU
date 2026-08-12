@@ -13,5 +13,6 @@ COPY backend/ .
 COPY --from=web /app/web/dist web/dist
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PORT=8000
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONIOENCODING=utf-8
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

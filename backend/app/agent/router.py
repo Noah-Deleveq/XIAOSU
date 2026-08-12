@@ -136,7 +136,7 @@ def chat_stream(req: ChatRequest):
             )
             yield _sse("error", {"message": str(e)})
 
-    return StreamingResponse(gen(), media_type="text/event-stream")
+    return StreamingResponse(gen(), media_type="text/event-stream; charset=utf-8")
 
 
 @router.post("/api/chat/file")
@@ -244,7 +244,7 @@ async def chat_file_stream(
             )
             yield _sse("error", {"message": str(e)})
 
-    return StreamingResponse(gen(), media_type="text/event-stream")
+    return StreamingResponse(gen(), media_type="text/event-stream; charset=utf-8")
 
 
 @router.get("/api/traces")
