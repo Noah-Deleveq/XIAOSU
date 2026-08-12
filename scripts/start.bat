@@ -1,7 +1,11 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
-cd backend
+cd /d "%~dp0..\backend"
+if not exist .venv (
+    echo [错误] 未找到 .venv，请先执行: cd /d D:\GitHub\xiaosu\backend ^&^& uv sync
+    pause
+    exit /b 1
+)
 echo ==========================================
 echo   小苏 AI 助手 - 一键启动（HTTP + 钉钉机器人）
 echo ==========================================
