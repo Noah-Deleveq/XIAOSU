@@ -55,3 +55,32 @@ backend/app/
 - 技术：React 19 + Vite 6 + Tailwind v4
 - 启动：双击 `scripts/start_web.bat`（自动起后端 + 前端，并打开浏览器 http://localhost:5173）
 - 功能：文档上传/删除、备用聊天（浏览器直接对话，不依赖钉钉）、对话日志、服务状态
+## 系统架构
+
+```
+钉钉 App（私聊 / 群聊 @小苏）
+   │  Stream 长连接（无需公网 IP/域名）
+   ▼
+钉钉适配层 im/ ──────────────► Agent 核心 agent/
+                                    │
+                 ┌──────────────────┼───────────────────┐
+                 ▼                  ▼                   ▼
+           knowledge/           tools/              session/
+          文档→Chroma 向量库   mock API/时间工具   SQLite 多轮会话
+                 │                  │                   │
+                 └──────── LLM（OpenAI 兼容 API）◄───────┘
+                                   ▲
+   Web 管理后台（React+Vite）────► /api（FastAPI：docs/chat/logs）
+```
+
+## 验收对照（笔试 7.1-7.6）
+
+| 验收点 | 实现 | 验证方式 |
+|---|---|---|
+| 7.1 基础问答带引用 | RAG 检索 + `[n]` 标注 + 📎 来源 | 钉钉问「员工每年几天年假？」 |
+| 7.2 工具调用 | function calling 自主调 mock API | 钉钉问「员工 001 是哪个部门的？」 |
+| 7.3 多轮对话 | 按 user+session 保存历史 | 先问「张伟」，再问「他上周来上班几天」 |
+| 7.4 拒答 | 检索不到绝不编造 | 问「CEO 的家庭住址」 |
+| 7.5 Key 失效兜底 | IM 返回友好错误 | `.env` 改错 Key 重启后提问 |
+| 7.6 后台日志/文档管理 | Web 后台四页 | 浏览器 http://localhost:5173 |
+
