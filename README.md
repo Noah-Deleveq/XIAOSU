@@ -49,3 +49,9 @@ backend/app/
 - 配置：`backend/.env` 里 `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET`
 - 消息流：@小苏 → 去 @ → RAG/工具 → 回复（含引用来源）
 - 回复走 session_webhook（官方 reply_text），无需额外权限配置
+
+## Web 管理后台（M5）
+
+- 技术：React 19 + Vite 6 + Tailwind v4
+- 启动：双击 `scripts/start_web.bat`（自动起后端 + 前端，并打开浏览器 http://localhost:5173）
+- 功能：文档上传/删除、备用聊天（浏览器直接对话，不依赖钉钉）、对话日志、服务状态
