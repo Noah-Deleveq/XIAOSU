@@ -59,5 +59,7 @@ def health() -> dict:
     return {"ok": True, "service": "xiaosu", "env": settings.app_env, "version": "0.1.0"}
 
 web_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
+if not web_dist.exists():
+    web_dist = Path.cwd() / "web" / "dist"
 if web_dist.exists():
     app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")
