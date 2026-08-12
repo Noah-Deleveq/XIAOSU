@@ -37,4 +37,4 @@ app.include_router(mock_router)
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "service": "xiaosu", "env": settings.app_env}
+    return {"ok": True, "service": "xiaosu", "env": settings.app_env, "version": "0.1.0"}
