@@ -55,6 +55,22 @@ class XiaoSuBot(ChatbotHandler):
         return AckMessage.STATUS_OK, "OK"
 
 
+def build_stream_client() -> dingtalk_stream.DingTalkStreamClient:
+    """创建并配置钉钉 Stream 客户端。
+
+    关键：必须用 ChatbotMessage.TOPIC（/v1.0/im/bot/messages/get）注册，
+    钉钉推送的 chatbot 消息 headers.topic 就是它；注册其他字符串会导致消息全部被丢弃。
+    """
+    from app.config import settings
+
+    credential = dingtalk_stream.Credential(
+        settings.dingtalk_app_key, settings.dingtalk_app_secret
+    )
+    client = dingtalk_stream.DingTalkStreamClient(credential)
+    client.register_callback_handler(ChatbotMessage.TOPIC, XiaoSuBot())
+    return client
+
+
 def start_dingtalk_bot() -> None:
     """启动钉钉 Stream 长连接（阻塞，放独立线程运行）"""
     from app.config import settings
@@ -62,10 +78,6 @@ def start_dingtalk_bot() -> None:
     if not settings.dingtalk_app_key or not settings.dingtalk_app_secret:
         logger.warning("未配置 DINGTALK_APP_KEY/SECRET，跳过钉钉连接")
         return
-    credential = dingtalk_stream.Credential(
-        settings.dingtalk_app_key, settings.dingtalk_app_secret
-    )
-    client = dingtalk_stream.DingTalkStreamClient(credential)
-    client.register_callback_handler("chatbot", XiaoSuBot())
+    client = build_stream_client()
     logger.info("钉钉 Stream 机器人启动中...")
     client.start_forever()
