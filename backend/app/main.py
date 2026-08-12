@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.agent.router import router as agent_router
 from app.knowledge.router import router as knowledge_router
 
 app = FastAPI(title="小苏 AI 助手", version="0.1.0")
@@ -15,6 +16,7 @@ app.add_middleware(
 )
 
 app.include_router(knowledge_router)
+app.include_router(agent_router)
 
 
 @app.get("/api/health")

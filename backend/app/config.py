@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # LLM（OpenAI 兼容接口）
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com"
-    llm_model: str = "deepseek-chat"
+    llm_model: str = "deepseek-v4-flash"
 
     # 钉钉（Stream 模式机器人）
     dingtalk_app_key: str = ""

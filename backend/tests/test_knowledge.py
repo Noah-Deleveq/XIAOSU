@@ -1,7 +1,4 @@
-import shutil
-from pathlib import Path
 
-shutil.rmtree("data", ignore_errors=True)  # 每个测试会话从干净数据开始
 
 """知识库功能测试：上传 → 索引 → 检索命中 → 删除 → 不再命中"""
 from fastapi.testclient import TestClient
