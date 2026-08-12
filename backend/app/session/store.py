@@ -1,4 +1,5 @@
 """会话存储（SQLite）：按 user_id + session_id 保存对话历史与轮次日志，隔离上下文"""
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -34,11 +35,15 @@ class SessionStore:
                 prompt_tokens INTEGER DEFAULT 0,
                 completion_tokens INTEGER DEFAULT 0,
                 total_tokens INTEGER DEFAULT 0,
+                tools_used TEXT DEFAULT '',
                 cost REAL DEFAULT 0,
                 ts TEXT NOT NULL
             )
             """
         )
+        cols = {row[1] for row in self._conn.execute("PRAGMA table_info(turn_logs)").fetchall()}
+        if "tools_used" not in cols:
+            self._conn.execute("ALTER TABLE turn_logs ADD COLUMN tools_used TEXT DEFAULT ''")
         self._conn.commit()
 
     def get_messages(self, user_id: str, session_id: str, limit: int = 20) -> list[dict]:
@@ -71,14 +76,15 @@ class SessionStore:
         provider: str,
         usage: dict,
         cost: float,
+        tools_used: list[str] | None = None,
     ) -> None:
         """记录一轮问答（含 Token/成本/工具，Web 后台日志用）"""
         self._conn.execute(
             """
             INSERT INTO turn_logs(
                 user_id, session_id, question, answer, used_tool, refused,
-                provider, prompt_tokens, completion_tokens, total_tokens, cost, ts
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                provider, prompt_tokens, completion_tokens, total_tokens, tools_used, cost, ts
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 user_id,
@@ -91,6 +97,7 @@ class SessionStore:
                 usage.get("prompt_tokens", 0),
                 usage.get("completion_tokens", 0),
                 usage.get("total_tokens", 0),
+                json.dumps(tools_used or [], ensure_ascii=False),
                 cost,
                 datetime.now().isoformat(),
             ),
@@ -117,7 +124,7 @@ class SessionStore:
         """全部轮次日志（含 Token/成本/工具）"""
         rows = self._conn.execute(
             "SELECT user_id, session_id, question, answer, used_tool, refused, provider,"
-            " prompt_tokens, completion_tokens, total_tokens, cost, ts FROM turn_logs ORDER BY id"
+            " prompt_tokens, completion_tokens, total_tokens, tools_used, cost, ts FROM turn_logs ORDER BY id"
         ).fetchall()
         return [
             {
@@ -131,8 +138,9 @@ class SessionStore:
                 "prompt_tokens": r[7],
                 "completion_tokens": r[8],
                 "total_tokens": r[9],
-                "cost": r[10],
-                "ts": r[11],
+                "tools_used": json.loads(r[10] or "[]"),
+                "cost": r[11],
+                "ts": r[12],
             }
             for r in rows
         ]

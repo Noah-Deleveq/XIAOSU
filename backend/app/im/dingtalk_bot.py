@@ -1,33 +1,19 @@
 """钉钉 Stream 模式机器人：收 @消息 → 问答（RAG/工具）→ 回复群/单聊"""
+import asyncio
 import logging
-import re
+import time
 
 import websockets.exceptions  # noqa: F401  兼容 websockets 17
 import dingtalk_stream
 from dingtalk_stream import AckMessage, ChatbotHandler, ChatbotMessage
 
 from app.agent.qa import QaEngine
-from app.state import index, sessions
+from app.im.common import build_reply, clean_mention
+from app.state import index, sessions, traces
 
 logger = logging.getLogger("xiaosu.im")
 
 _engine = QaEngine(index, sessions)
-
-
-def clean_mention(text: str) -> str:
-    """去掉消息开头的 @小苏 及空白，取出真正的问题"""
-    cleaned = re.sub(r"@[\w\u4e00-\u9fa5]+\s*", "", text, count=1)
-    return cleaned.strip()
-
-
-def build_reply(result: dict) -> str:
-    """组装回复文本：答案 + 引用来源"""
-    reply = result["answer"]
-    refs = [r["name"] for r in result["references"]]
-    if refs:
-        sources = "、".join(dict.fromkeys(refs))
-        reply += f"\n\n📎 来源：{sources}"
-    return reply
 
 
 class XiaoSuBot(ChatbotHandler):
@@ -40,14 +26,74 @@ class XiaoSuBot(ChatbotHandler):
 
         user_id = msg.sender_staff_id or "unknown"
         session_id = msg.conversation_id or user_id
+        started = time.perf_counter()
+        card = None
+        completed = False
 
         try:
-            result = _engine.answer(user_id, session_id, question)
-            reply = build_reply(result)
-            self.reply_text(reply, msg)
-            logger.info("回答 %s: %s -> %s", user_id, question[:30], reply[:60])
+            # AI 卡片流式回复；启动失败或客户端未连接时回退普通文本
+            if getattr(self, "dingtalk_client", None) is not None:
+                try:
+                    card = self.ai_markdown_card_start(msg, title="小苏")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("AI 卡片启动失败，回退文本回复: %s", e)
+                    card = None
+                if card is None or not getattr(card, "card_instance_id", ""):
+                    card = None
+
+            if card is None:
+                result = _engine.answer(user_id, session_id, question)
+                reply = build_reply(result)
+                self.reply_text(reply, msg)
+                traces.add(
+                    "im_chat",
+                    user_id,
+                    session_id,
+                    provider=result.get("provider", ""),
+                    model=getattr(_engine, "model", ""),
+                    duration_ms=int((time.perf_counter() - started) * 1000),
+                    usage=result.get("usage"),
+                    cost=result.get("cost", 0),
+                    tools_used=result.get("tools_used"),
+                )
+                completed = True
+                logger.info("回答 %s: %s -> %s", user_id, question[:30], reply[:60])
+            else:
+                done_data: dict | None = None
+                for event in _engine.answer_stream(user_id, session_id, question):
+                    if event["type"] == "text":
+                        await asyncio.to_thread(card.ai_streaming, event["text"], True)
+                    elif event["type"] == "done":
+                        done_data = event["data"]
+                        final_reply = build_reply(done_data)
+                        await asyncio.to_thread(card.ai_finish, markdown=final_reply)
+                        completed = True
+                if done_data is None:
+                    raise RuntimeError("流式回复未完成")
+                traces.add(
+                    "im_chat_stream",
+                    user_id,
+                    session_id,
+                    provider=done_data.get("provider", ""),
+                    model=getattr(_engine, "model", ""),
+                    duration_ms=int((time.perf_counter() - started) * 1000),
+                    usage=done_data.get("usage"),
+                    cost=done_data.get("cost", 0),
+                    tools_used=done_data.get("tools_used"),
+                )
+                logger.info(
+                    "流式回答 %s: %s -> %s",
+                    user_id,
+                    question[:30],
+                    build_reply(done_data)[:60],
+                )
         except Exception as e:  # noqa: BLE001
             logger.exception("处理消息失败")
+            if card is not None and not completed:
+                try:
+                    await asyncio.to_thread(card.ai_fail)
+                except Exception:  # noqa: BLE001
+                    pass
             try:
                 self.reply_text(f"抱歉，处理你的问题出错了：{e}", msg)
             except Exception:  # noqa: BLE001

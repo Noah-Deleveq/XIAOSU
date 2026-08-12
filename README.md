@@ -7,7 +7,7 @@
 - 后端：Python 3.11+ / FastAPI / uv
 - 问答：OpenAI 兼容 API（DeepSeek 等）+ function calling
 - 知识库：jieba 中文分词 + BM25 检索（本地 JSON 持久化，零外部服务）+ pypdf / python-docx（PDF/Word/MD/TXT）
-- IM：钉钉官方 **Stream 模式**（长连接，无需公网 IP/域名）
+- IM：钉钉官方 **Stream 模式**（长连接，无需公网 IP/域名）+ 飞书 **WebSocket 长连接**（无需公网 URL）+ 企业微信（可选回调适配）
 - 前端：React + Vite（管理后台）
 - MCP：fastmcp（Claude Desktop / Cursor 可调）
 
@@ -15,22 +15,29 @@
 
 1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key（可配多家供应商）、钉钉 AppKey/Secret
 2. 安装依赖：`cd backend && uv sync`；前端 `cd web && pnpm install`
-3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`
+3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`；前后端一起起可运行 `sh scripts/start_web.sh`
    - HTTP 服务：http://localhost:8000（接口文档 /docs）
    - 钉钉机器人：启动后自动连接，钉钉里 **@小苏** 提问即可（单聊/群聊都行）
+   - 飞书机器人：启动后自动连接，飞书里 **@小苏** 提问即可（单聊/群聊都行）
 4. 上传文档：`POST /api/docs`（或后台页面），之后即可问答
+
+常用命令：`sh scripts/seed_data.sh` 生成并导入种子文档；`sh scripts/test.sh` 跑测试；`sh scripts/deploy.sh` 构建产物。
 
 ## 功能
 
 - 文档知识库：上传/列表/删除（PDF/Word/MD/TXT），同名替换
-- 智能问答：RAG 检索 + 引用来源 + 拒答 + 多轮（按用户隔离）
+- 智能问答：RAG 检索 + 引用来源（Web 可点击查看原文并高亮）+ 拒答 + 多轮（按用户隔离）+ 流式输出（Web SSE `/api/chat/stream`、钉钉 AI 卡片打字机、飞书 AI 卡片打字机）
+- 文件上传问答：上传 Markdown/TXT/PDF/Word 后直接针对该文件提问，同样支持流式输出
 - 工具调用：员工信息 / 考勤 / 销售订单 / 当前时间（mock 内部 API）
+- IM 多端：钉钉 Stream + 飞书 WebSocket 长连接共用同一套问答引擎（企业微信回调适配也已提供）
 - 对话日志：`/api/logs` 全量查看（含 Token / 成本 / 工具调用）
+- 可观测性：`/api/traces` 记录每次问答/上传的耗时、Token、成本、工具与错误，后台可查看请求链路
+- 错误容错：LLM 超时/限流自动重试，重试失败后降级为友好提示，不直接 500
 
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 20+ 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 45 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 目录结构
@@ -50,14 +57,26 @@ backend/app/
 ## 钉钉集成（M4）
 
 - 配置：`backend/.env` 里 `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET`
-- 消息流：@小苏 → 去 @ → RAG/工具 → 回复（含引用来源）
-- 回复走 session_webhook（官方 reply_text），无需额外权限配置
+- 消息流：@小苏 → 去 @ → RAG/工具 → AI 卡片打字机回复（含引用来源；卡片失败自动回退文本）
+- 流式卡片走钉钉 OpenAPI；卡片不可用时回退 session_webhook 文本回复
+
+## 企业微信集成
+
+- 配置：`backend/.env` 里 `WECOM_CORP_ID` / `WECOM_AGENT_ID` / `WECOM_SECRET` / `WECOM_TOKEN` / `WECOM_AES_KEY`
+- 回调地址：`https://你的域名/api/im/wecom`，用于企业微信后台 URL 验证和消息接收
+- 消息流：员工发消息 → 企业微信回调 → 小苏问答引擎 → 通过企业微信 API 主动回复（含引用来源）
+
+## 飞书集成
+
+- 配置：`backend/.env` 里 `FEISHU_APP_ID` / `FEISHU_APP_SECRET`
+- 接收方式：飞书官方 **WebSocket 长连接**，无需公网 URL、HTTPS、内网穿透
+- 消息流：员工在飞书里 @小苏 → 长连接收到消息 → 小苏问答引擎 → AI 卡片打字机回复（含引用来源；卡片失败自动回退文本）
 
 ## Web 管理后台（M5）
 
 - 技术：React 19 + Vite 6 + Tailwind v4
 - 启动：双击 `scripts/start_web.bat`（自动起后端 + 前端，并打开浏览器 http://localhost:5173）
-- 功能：文档上传/删除、备用聊天（浏览器直接对话，不依赖钉钉）、对话日志（含 Token/成本）、设置（LLM 供应商切换、IM 状态）
+- 功能：文档上传/删除、备用聊天（含文件上传问答）、对话日志（含 Token/成本）、可观测性（请求链路）、设置（LLM 供应商切换、IM 状态）
 
 ## 系统架构
 
@@ -78,6 +97,10 @@ backend/app/
 ```
 
 ## 加分项
+
+### 多端 IM 接入
+
+已接入 **钉钉 + 飞书**，两者共用同一套问答引擎、会话存储与可观测性；飞书采用 WebSocket 长连接，无需公网 URL。企业微信回调适配也已提供，可作为可选第三种接入。
 
 ### 多模型适配（≥2 家供应商）
 

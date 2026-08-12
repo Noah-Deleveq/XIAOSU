@@ -113,6 +113,10 @@ class VectorIndex:
         self._doc_names.pop(doc_id, None)
         self._save()
 
+    def get_chunk(self, doc_id: str, chunk_index: int) -> str | None:
+        """按文档 id + 片段序号取原文片段，供引用定位使用。"""
+        return self._chunks.get(f"{doc_id}#{chunk_index}")
+
     def search(self, query: str, k: int = 4) -> list[dict]:
         """BM25 检索，返回带出处（doc_id/name/chunk_index）的片段"""
         if not self._chunks:

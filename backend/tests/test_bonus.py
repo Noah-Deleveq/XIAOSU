@@ -32,6 +32,17 @@ def test_provider_fallback_old_vars(monkeypatch):
     assert p.api_key == "sk-old-key"
 
 
+def test_provider_flat_env_vars(monkeypatch):
+    """.env.example 的 DEEPSEEK_API_KEY 等扁平变量必须能被读取"""
+    from app.config import Settings
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-flat")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    s = Settings(_env_file=None)
+    assert s.deepseek_api_key == "sk-flat"
+    assert s.get_provider("deepseek").api_key == "sk-flat"
+
+
 def test_provider_switch_api():
     """运行时切换供应商：GET 查看 / POST 切换 / 非法名 400"""
     r = client.get("/api/settings")

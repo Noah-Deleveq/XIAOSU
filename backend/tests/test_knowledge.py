@@ -45,6 +45,25 @@ def test_upload_and_search():
     assert any(d["id"] == doc_id for d in docs)
 
 
+def test_get_doc_chunk_for_reference():
+    """引用定位接口能按 doc_id + chunk_index 返回原文片段"""
+    r = client.post(
+        "/api/docs",
+        files={"file": ("定位.txt", "定位测试内容\n\n员工每年享有 10 天带薪年假。".encode("utf-8"), "text/plain")},
+    )
+    assert r.status_code == 200
+    doc_id = r.json()["id"]
+
+    chunk = client.get(f"/api/docs/{doc_id}/chunk/0")
+    assert chunk.status_code == 200
+    body = chunk.json()
+    assert body["name"] == "定位.txt"
+    assert "带薪年假" in body["text"]
+
+    missing = client.get(f"/api/docs/{doc_id}/chunk/999")
+    assert missing.status_code == 404
+
+
 def test_unsupported_format():
     """不支持的格式应返回 400"""
     r = client.post(
@@ -88,3 +107,8 @@ def test_same_name_replace_old():
     assert not idx.search("苹果"), "旧文档内容不应再被检索到（同名替换失败）"
     hits = idx.search("香蕉")
     assert hits and any("香蕉" in h["text"] for h in hits), "新内容应可检索"
+
+    listed = client.get("/api/docs").json()["docs"]
+    same_name = [d for d in listed if d["name"] == "同名.txt"]
+    assert len(same_name) == 1, "同名替换后后台列表应只剩新文档"
+    assert same_name[0]["id"] == d2

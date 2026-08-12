@@ -69,7 +69,7 @@ export default function DocsPage() {
                 <div>
                   <p className="font-medium text-slate-800">{d.name}</p>
                   <p className="text-xs text-slate-400">
-                    {d.chunks} 段 · {d.created_at}
+                    {d.status || 'pending'} · {d.updated_at || ''}
                   </p>
                 </div>
                 <button

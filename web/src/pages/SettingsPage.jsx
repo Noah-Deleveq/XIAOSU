@@ -96,6 +96,14 @@ export default function SettingsPage() {
           label="钉钉 Stream 机器人"
           value={settings?.dingtalk_configured ? '✅ 已配置' : '⚠️ 未配置（填 .env 后重启）'}
         />
+        <Row
+          label="企业微信机器人"
+          value={settings?.wecom_configured ? '✅ 已配置' : '⚠️ 未配置（填 .env 后重启）'}
+        />
+        <Row
+          label="飞书机器人"
+          value={settings?.feishu_configured ? '✅ 已配置' : '⚠️ 未配置（填 .env 后重启）'}
+        />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6">

@@ -3,11 +3,13 @@ import DocsPage from './pages/DocsPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import LogsPage from './pages/LogsPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
+import TracePage from './pages/TracePage.jsx'
 
 const TABS = [
   { key: 'docs', label: '📄 文档管理' },
   { key: 'chat', label: '💬 备用聊天' },
   { key: 'logs', label: '📋 对话日志' },
+  { key: 'traces', label: '🔍 可观测性' },
   { key: 'settings', label: '⚙️ 设置' },
 ]
 
@@ -38,6 +40,7 @@ export default function App() {
         {tab === 'docs' && <DocsPage />}
         {tab === 'chat' && <ChatPage />}
         {tab === 'logs' && <LogsPage />}
+        {tab === 'traces' && <TracePage />}
         {tab === 'settings' && <SettingsPage />}
       </main>
     </div>

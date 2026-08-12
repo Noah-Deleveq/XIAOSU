@@ -8,6 +8,7 @@ from app.agent.router import router as agent_router
 from app.config import settings
 from app.knowledge.router import router as knowledge_router
 from app.mock_api.router import router as mock_router
+from app.im.wecom_bot import router as wecom_router
 
 
 @asynccontextmanager
@@ -27,12 +28,14 @@ async def lifespan(_app: FastAPI):
         ],
     )
 
-    # 启动钉钉 Stream 机器人（长连接，独立线程）
+    # 启动钉钉 / 飞书机器人（长连接，独立线程）
     import threading
 
     from app.im.dingtalk_bot import start_dingtalk_bot
+    from app.im.feishu_bot import start_feishu_bot
 
     threading.Thread(target=start_dingtalk_bot, daemon=True).start()
+    threading.Thread(target=start_feishu_bot, daemon=True).start()
     yield
 
 
@@ -48,6 +51,7 @@ app.add_middleware(
 app.include_router(knowledge_router)
 app.include_router(agent_router)
 app.include_router(mock_router)
+app.include_router(wecom_router)
 
 
 @app.get("/api/health")

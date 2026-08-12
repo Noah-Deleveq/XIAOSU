@@ -56,3 +56,8 @@ class DocStore:
         cur = self._conn.execute("DELETE FROM docs WHERE id = ?", (doc_id,))
         self._conn.commit()
         return cur.rowcount > 0
+
+    def delete_by_name(self, name: str) -> None:
+        """删除同名旧文档记录（增量更新时使用，避免后台列表残留重复项）"""
+        self._conn.execute("DELETE FROM docs WHERE name = ?", (name,))
+        self._conn.commit()
