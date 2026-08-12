@@ -1,8 +1,10 @@
 """小苏 · FastAPI 应用入口（一条命令启动：HTTP 服务 + 钉钉 Stream 机器人）"""
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.agent.router import router as agent_router
 from app.config import settings
@@ -55,3 +57,7 @@ app.include_router(mock_router)
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "service": "xiaosu", "env": settings.app_env, "version": "0.1.0"}
+
+web_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
+if web_dist.exists():
+    app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")

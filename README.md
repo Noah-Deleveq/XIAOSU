@@ -41,8 +41,22 @@
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 45 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 42 个用例，Mock LLM，不依赖真实 API
 ```
+
+## 在线 Demo
+
+- **临时最快（免费）**：先 `sh scripts/deploy.sh` 构建前端，再 `sh scripts/start.sh` 启动后端；本地安装 [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)，执行：
+
+  ```bash
+  cloudflared tunnel --url http://localhost:8000
+  ```
+
+  它会生成一个 `https://xxx.trycloudflare.com` 临时地址，浏览器打开就是管理后台和备用聊天。地址只在 cloudflared 运行期间有效，适合面试演示。
+
+- **长期部署**：把仓库放到 Railway / Render / 自己的服务器，执行 `scripts/deploy.sh` 后启动 `scripts/start.sh`，然后把公网地址发给面试官。钉钉和飞书都是长连接主动外连，不需要配置公网回调。
+
+- **实在不想部署**：按笔试要求录一段 30 秒以内的演示视频也可以。
 
 ## 目录结构
 
