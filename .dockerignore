@@ -1,0 +1,14 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+backend/.env
+backend/.venv
+backend/.venv-linux
+backend/data
+backend/logs
+web/node_modules
+web/dist
+docs
+scripts

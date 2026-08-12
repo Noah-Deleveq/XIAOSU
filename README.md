@@ -58,6 +58,20 @@ cd backend && uv run pytest tests/ -v   # 42 个用例，Mock LLM，不依赖真
 
 - **实在不想部署**：按笔试要求录一段 30 秒以内的演示视频也可以。
 
+### Railway
+
+1. 把仓库推送到 GitHub，在 Railway 新建项目并选择 `Deploy from GitHub repo`。
+2. Railway 会自动识别根目录 `Dockerfile`。
+3. 在项目变量里填 `DEEPSEEK_API_KEY`、`DINGTALK_APP_KEY/SECRET`、`FEISHU_APP_ID/SECRET`。
+4. 部署完成后，Railway 会给出 `https://xxx.up.railway.app`，直接打开就是管理后台和备用聊天。
+
+### Render
+
+1. 把仓库推送到 GitHub，在 Render 新建 `Blueprint` 并选择该仓库。
+2. Render 会读取根目录 `render.yaml` 自动创建服务。
+3. 首次创建时按提示填写 `DEEPSEEK_API_KEY`、钉钉和飞书密钥。
+4. 部署完成后，打开 Render 给的 `https://xxx.onrender.com` 即可。
+
 ## 目录结构
 
 ```
