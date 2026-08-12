@@ -6,7 +6,7 @@
 
 - 后端：Python 3.11+ / FastAPI / uv（禁 pip）
 - 问答：OpenAI 兼容 API（DeepSeek 等）+ function calling
-- 知识库：ChromaDB（本地向量库）+ pypdf / python-docx（PDF/Word/MD/TXT）
+- 知识库：jieba 中文分词 + BM25 检索（本地 JSON 持久化，零外部服务）+ pypdf / python-docx（PDF/Word/MD/TXT）
 - IM：钉钉官方 **Stream 模式**（长连接，无需公网 IP/域名）
 - 前端：React + Vite（管理后台）
 
@@ -29,14 +29,14 @@
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 11 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 15 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 目录结构
 
 ```
 backend/app/
-├── knowledge/   文档解析 + 切块 + Chroma 索引
+├── knowledge/   文档解析 + 切块 + BM25 索引
 ├── agent/       问答核心（RAG + function calling）
 ├── tools/       工具注册与执行
 ├── mock_api/    内部系统 mock（员工/考勤/订单）
@@ -66,7 +66,7 @@ backend/app/
                  ┌──────────────────┼───────────────────┐
                  ▼                  ▼                   ▼
            knowledge/           tools/              session/
-          文档→Chroma 向量库   mock API/时间工具   SQLite 多轮会话
+          文档→BM25 索引   mock API/时间工具   SQLite 多轮会话
                  │                  │                   │
                  └──────── LLM（OpenAI 兼容 API）◄───────┘
                                    ▲

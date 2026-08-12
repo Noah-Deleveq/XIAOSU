@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cd /d "%~dp0..\backend"
 if not exist .venv (
-    echo [错误] 未找到 .venv，请先执行: cd /d D:\GitHub\xiaosu\backend ^&^& uv sync
+    echo [错误] 未找到 .venv，请先在 backend 目录执行: uv sync
     pause
     exit /b 1
 )
