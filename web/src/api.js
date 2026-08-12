@@ -22,4 +22,11 @@ export const api = {
       body: JSON.stringify({ user_id: 'web-admin', session_id: sessionId, message }),
     }),
   logs: () => req('/logs'),
+  settings: () => req('/settings'),
+  switchProvider: (name) =>
+    req('/settings/provider', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
 }

@@ -9,10 +9,11 @@
 - 知识库：jieba 中文分词 + BM25 检索（本地 JSON 持久化，零外部服务）+ pypdf / python-docx（PDF/Word/MD/TXT）
 - IM：钉钉官方 **Stream 模式**（长连接，无需公网 IP/域名）
 - 前端：React + Vite（管理后台）
+- MCP：fastmcp（Claude Desktop / Cursor 可调）
 
 ## 快速开始
 
-1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key、钉钉 AppKey/Secret
+1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key（可配多家供应商）、钉钉 AppKey/Secret
 2. 安装依赖：`cd backend && uv sync`；前端 `cd web && pnpm install`
 3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`
    - HTTP 服务：http://localhost:8000（接口文档 /docs）
@@ -24,12 +25,12 @@
 - 文档知识库：上传/列表/删除（PDF/Word/MD/TXT），同名替换
 - 智能问答：RAG 检索 + 引用来源 + 拒答 + 多轮（按用户隔离）
 - 工具调用：员工信息 / 考勤 / 销售订单 / 当前时间（mock 内部 API）
-- 对话日志：`/api/logs` 全量查看
+- 对话日志：`/api/logs` 全量查看（含 Token / 成本 / 工具调用）
 
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 15 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 20+ 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 目录结构
@@ -41,7 +42,9 @@ backend/app/
 ├── tools/       工具注册与执行
 ├── mock_api/    内部系统 mock（员工/考勤/订单）
 ├── im/          钉钉 Stream 机器人
-└── session/     多轮会话存储（SQLite）
+├── session/     多轮会话存储（SQLite）
+├── mcp_server.py  MCP Server（Claude Desktop / Cursor 可调）
+└── cost.py      Token 成本估算
 ```
 
 ## 钉钉集成（M4）
@@ -54,7 +57,8 @@ backend/app/
 
 - 技术：React 19 + Vite 6 + Tailwind v4
 - 启动：双击 `scripts/start_web.bat`（自动起后端 + 前端，并打开浏览器 http://localhost:5173）
-- 功能：文档上传/删除、备用聊天（浏览器直接对话，不依赖钉钉）、对话日志、服务状态
+- 功能：文档上传/删除、备用聊天（浏览器直接对话，不依赖钉钉）、对话日志（含 Token/成本）、设置（LLM 供应商切换、IM 状态）
+
 ## 系统架构
 
 ```
@@ -73,6 +77,59 @@ backend/app/
    Web 管理后台（React+Vite）────► /api（FastAPI：docs/chat/logs）
 ```
 
+## 加分项
+
+### 多模型适配（≥2 家供应商）
+
+内置 **DeepSeek / 智谱 GLM / 阿里通义** 3 家（OpenAI 兼容接口统一调用），默认由 `LLM_PROVIDER` 指定，也可在 Web 后台「设置」页**运行时切换**（内存生效，重启后恢复 .env 值）：
+
+```bash
+LLM_PROVIDER=deepseek        # deepseek / zhipu / dashscope
+DEEPSEEK_API_KEY=sk-xxx
+ZHIPU_API_KEY=xxx            # https://open.bigmodel.cn
+DASHSCOPE_API_KEY=xxx        # https://dashscope.aliyuncs.com
+```
+
+未单独配置的供应商会回退到旧版 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`，老 .env 无需改动。
+
+### Token 计数与成本展示
+
+每次对话记录 usage（prompt / completion / total tokens），按模型公开单价估算成本；Web 后台「日志」页展示每轮 Token 数与成本，并提供汇总（总轮次 / 总 Token / 总成本）。
+
+### MCP Server
+
+把「小苏」的知识库问答与工具调用暴露为 MCP，可被 Claude Desktop / Cursor 调用：
+
+```bash
+uv run python -m app.mcp_server    # stdio 模式
+```
+
+Claude Desktop 配置（claude_desktop_config.json）：
+
+```json
+{
+  "mcpServers": {
+    "xiaosu": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/xiaosu/backend", "run", "python", "-m", "app.mcp_server"]
+    }
+  }
+}
+```
+
+暴露工具：`search_knowledge` / `ask_xiaosu` / `query_employee` / `query_attendance` / `query_orders` / `current_time`。
+
+### Evals 自动化评测
+
+26 条用例（文档命中 / 工具调用 / 多轮指代 / 拒答），跑出准确率：
+
+```bash
+uv run python scripts/eval.py            # 全量
+uv run python scripts/eval.py --limit 5  # 快速试跑
+```
+
+报告写入 `logs/eval_report.json`（需配置真实 LLM API Key）。
+
 ## 验收对照（笔试 7.1-7.6）
 
 | 验收点 | 实现 | 验证方式 |
@@ -83,4 +140,3 @@ backend/app/
 | 7.4 拒答 | 检索不到绝不编造 | 问「CEO 的家庭住址」 |
 | 7.5 Key 失效兜底 | IM 返回友好错误 | `.env` 改错 Key 重启后提问 |
 | 7.6 后台日志/文档管理 | Web 后台四页 | 浏览器 http://localhost:5173 |
-
