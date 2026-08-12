@@ -272,6 +272,9 @@ def settings_get() -> dict:
     return {
         "providers": settings.provider_names(),
         "current": state.current_provider,
+        "llm_configured": bool(
+            settings.get_provider(state.current_provider).api_key
+        ),
         "dingtalk_configured": bool(
             settings.dingtalk_app_key and settings.dingtalk_app_secret
         ),
