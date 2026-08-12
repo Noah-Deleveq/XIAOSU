@@ -7,6 +7,9 @@ RUN pnpm run build
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY backend/ .
