@@ -315,7 +315,7 @@ def im_status() -> dict:
 
 @router.post("/api/im/toggle")
 def im_toggle(payload: ImToggleRequest) -> dict:
-    """运行时开关 IM 机器人，避免本地与线上实例同时回复"""
+    """运行时开关 IM 机器人，同一时间只保留一个实例回复"""
     state.set_im_enabled(payload.channel, payload.enabled)
     return {
         "ok": True,

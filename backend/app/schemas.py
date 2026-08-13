@@ -26,7 +26,7 @@ class ProviderSwitch(BaseModel):
 
 
 class ImToggleRequest(BaseModel):
-    """运行期开关 IM 机器人，避免本地与线上实例同时回复"""
+    """运行期开关 IM 机器人，同一时间只保留一个实例回复"""
 
     channel: Literal["dingtalk", "feishu"]
     enabled: bool
