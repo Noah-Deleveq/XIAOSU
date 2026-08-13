@@ -352,3 +352,31 @@ def test_system_prompt_requires_direct_tool_call():
 
     assert "query_employee" in SYSTEM_PROMPT
     assert "不能只说“我可以帮您查询”" in SYSTEM_PROMPT
+
+def test_resolve_employee_reference_from_history():
+    """“他/她”能从历史里解析出员工编号"""
+    from app.agent.qa import resolve_employee_reference
+
+    history = [{"role": "assistant", "content": "员工 001（张伟）属于技术部，职位是后端工程师。"}]
+    assert resolve_employee_reference("他上周来上班几天？", history) == ("001", "张伟")
+    assert resolve_employee_reference("员工 002 是哪个部门的？", history) is None
+    assert resolve_employee_reference("其他员工呢？", history) is None
+
+
+def test_multiturn_pronoun_injects_employee_id():
+    """第二轮问“他”时，问题里自动带上历史员工编号，避免模型反问"""
+    from app.agent.qa import QaEngine
+    from app.config import settings
+    from app.knowledge.indexer import VectorIndex
+    from app.session.store import SessionStore
+
+    fake = _FakeClient()
+    engine = QaEngine(
+        VectorIndex(f"{settings.data_dir}/chroma"),
+        SessionStore(f"{settings.data_dir}/sessions.db"),
+        client=fake,
+    )
+    engine.answer("u1", "s-pro-2", "员工 001 是哪个部门的？")
+    engine.answer("u1", "s-pro-2", "他上周来上班几天？")
+    user_msgs = [m["content"] for m in fake.last_messages if m["role"] == "user"]
+    assert any("员工编号 001" in m and "指代" in m for m in user_msgs)

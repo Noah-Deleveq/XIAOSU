@@ -1,4 +1,5 @@
 """问答核心：检索知识库 → LLM（支持 function calling 工具调用）→ 答案 + 引用 + 拒答 + 多轮"""
+import re
 import time
 
 from openai import (
@@ -23,7 +24,59 @@ SYSTEM_PROMPT = """你是公司内部 AI 助手「小苏」，负责根据公司
 2. 文档里找不到答案时，明确回答「文档里没找到相关内容」，绝不编造。
 3. 当用户问到员工部门、考勤、销售订单、当前时间，或给出员工编号（如 001）时，必须直接调用 query_employee / query_attendance / query_orders / current_time，不能只说“我可以帮您查询”，也不能从文档里编造答案。
 4. 回答用中文，简洁、专业、口语友好；先给结论，再给依据。
-5. 如果历史消息里出现过“我可以帮您查询”但没有实际调用工具，那是错误的旧回答；当前问题需要工具时仍必须直接调用，不要沿用历史中的拒答。"""
+5. 如果历史消息里出现过“我可以帮您查询”但没有实际调用工具，那是错误的旧回答；当前问题需要工具时仍必须直接调用，不要沿用历史中的拒答。
+6. 如果当前问题用“他/她/这位员工/该员工”等指代，且历史消息里出现过员工编号，必须沿用历史中的员工编号直接调用工具，不要反问用户。"""
+
+
+_EMPLOYEE_ID_RE = re.compile(r"员工\s*(\d{3})")
+_PRONOUN_MARKERS = ("这位员工", "该员工", "这个员工", "此人", "那个人")
+
+
+def _has_pronoun(question: str) -> bool:
+    if any(m in question for m in _PRONOUN_MARKERS):
+        return True
+    if "他" in question and "其他" not in question and "他们" not in question:
+        return True
+    return "她" in question and "她们" not in question
+
+
+def resolve_employee_reference(question: str, history: list[dict]) -> tuple[str, str] | None:
+    """当前问题用指代时，从历史对话里找最近提到的员工编号。"""
+    if not _has_pronoun(question):
+        return None
+    if re.search(r"员工\s*\d{3}", question):
+        return None
+    for msg in reversed(history):
+        text = msg.get("content") or ""
+        m = _EMPLOYEE_ID_RE.search(text)
+        if not m:
+            continue
+        emp_id = m.group(1)
+        from app.mock_api.data import get_employee
+
+        emp = get_employee(emp_id)
+        return emp_id, emp.get("name", "") if emp else ""
+    return None
+
+
+def _build_user_content(question: str, hits: list[dict], history: list[dict]) -> str:
+    if hits:
+        context = "\n\n".join(
+            f"[{i + 1}] 来源《{h['name']}》第 {h['chunk_index'] + 1} 段：\n{h['text']}"
+            for i, h in enumerate(hits)
+        )
+        content = f"【参考文档】\n{context}\n\n【问题】{question}"
+    else:
+        content = question
+    ref = resolve_employee_reference(question, history)
+    if ref:
+        emp_id, name = ref
+        label = f"{emp_id}（{name}）" if name else emp_id
+        content += (
+            f"\n\n【上下文】历史对话中提到的员工是 {label}，"
+            f"本次问题中的指代对象就是该员工，请直接使用员工编号 {emp_id} 调用工具，不要反问。"
+        )
+    return content
 
 
 class LLMUnavailableError(Exception):
@@ -99,15 +152,10 @@ class QaEngine:
             for h in hits
         ]
 
+        history = self._sessions.get_messages(user_id, session_id)
         messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
-        messages += self._sessions.get_messages(user_id, session_id)
-        user_content = question
-        if hits:
-            context = "\n\n".join(
-                f"[{i + 1}] 来源《{h['name']}》第 {h['chunk_index'] + 1} 段：\n{h['text']}"
-                for i, h in enumerate(hits)
-            )
-            user_content = f"【参考文档】\n{context}\n\n【问题】{question}"
+        messages += history
+        user_content = _build_user_content(question, hits, history)
         messages.append({"role": "user", "content": user_content})
 
         answer, used_tool, tools_used, usage = self._call_llm_with_tools(messages)
@@ -162,15 +210,10 @@ class QaEngine:
             for h in hits
         ]
 
+        history = self._sessions.get_messages(user_id, session_id)
         messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
-        messages += self._sessions.get_messages(user_id, session_id)
-        user_content = question
-        if hits:
-            context = "\n\n".join(
-                f"[{i + 1}] 来源《{h['name']}》第 {h['chunk_index'] + 1} 段：\n{h['text']}"
-                for i, h in enumerate(hits)
-            )
-            user_content = f"【参考文档】\n{context}\n\n【问题】{question}"
+        messages += history
+        user_content = _build_user_content(question, hits, history)
         messages.append({"role": "user", "content": user_content})
 
         result = {
