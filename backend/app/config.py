@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # LLM 调用容错：超时时间与失败重试次数
     llm_timeout_seconds: float = 60
-    llm_max_retries: int = 2
+    llm_max_retries: int = 4
 
     # 钉钉（Stream 模式机器人）
     dingtalk_app_key: str = ""
