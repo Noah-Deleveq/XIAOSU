@@ -1,8 +1,10 @@
 """飞书机器人适配：WebSocket 长连接接收消息，文本回复。"""
+import hashlib
 import json
 import logging
 import time
 from collections import deque
+from pathlib import Path
 from threading import Lock
 from typing import Any
 
@@ -19,6 +21,10 @@ _api_client: Any | None = None
 _seen_message_ids: set[str] = set()
 _seen_message_order: deque[str] = deque()
 _seen_lock = Lock()
+_seen_file = Path(settings.data_dir) / "feishu_seen.json"
+_seen_loaded = False
+_recent_questions: deque[tuple[float, str]] = deque()
+_recent_question_window = 60.0
 
 
 def get_api_client() -> Any:
@@ -127,6 +133,59 @@ def handle_feishu_text(user_id: str, chat_id: str, content: str) -> None:
             error=str(e),
         )
 
+def _load_seen_ids() -> None:
+    global _seen_loaded
+    if _seen_loaded:
+        return
+    try:
+        if _seen_file.exists():
+            data = json.loads(_seen_file.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                keys = data[-2000:]
+                for key in keys:
+                    _seen_message_ids.add(key)
+                _seen_message_order.extend(keys)
+    except Exception:
+        pass
+    _seen_loaded = True
+
+
+def _persist_seen_ids() -> None:
+    try:
+        _seen_file.parent.mkdir(parents=True, exist_ok=True)
+        _seen_file.write_text(
+            json.dumps(list(_seen_message_order)[-2000:], ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def _remember_seen(key: str) -> bool:
+    with _seen_lock:
+        _load_seen_ids()
+        if key in _seen_message_ids:
+            return False
+        _seen_message_ids.add(key)
+        _seen_message_order.append(key)
+        while len(_seen_message_order) > 2000:
+            _seen_message_ids.discard(_seen_message_order.popleft())
+        _persist_seen_ids()
+        return True
+
+
+def _is_recent_question(user_id: str, chat_id: str, question: str) -> bool:
+    now = time.monotonic()
+    digest = hashlib.sha256(f"{user_id}|{chat_id}|{question}".encode("utf-8")).hexdigest()
+    with _seen_lock:
+        while _recent_questions and now - _recent_questions[0][0] > _recent_question_window:
+            _recent_questions.popleft()
+        for ts, key in _recent_questions:
+            if key == digest and now - ts <= _recent_question_window:
+                return True
+        _recent_questions.append((now, digest))
+        return False
+
 
 def on_message(data: Any) -> None:
     if not state.im_enabled.get("feishu", settings.feishu_bot_enabled):
@@ -135,8 +194,11 @@ def on_message(data: Any) -> None:
     parsed = extract_text(data)
     event = data.event
     message = event.message if event is not None else None
+    header = getattr(data, "header", None)
     logger.info(
-        "飞书收到事件: user=%s chat=%s type=%s content=%s",
+        "飞书收到事件: event_id=%s message_id=%s user=%s chat=%s type=%s content=%s",
+        getattr(header, "event_id", "") or "",
+        message.message_id if message else "",
         parsed[0] if parsed else (event.sender.sender_id.open_id if event and event.sender and event.sender.sender_id else ""),
         parsed[1] if parsed else (message.chat_id if message else ""),
         message.message_type if message else "",
@@ -145,17 +207,28 @@ def on_message(data: Any) -> None:
     if parsed is None:
         return
     message_id = message.message_id if message is not None else ""
-    if message_id:
-        with _seen_lock:
-            if message_id in _seen_message_ids:
-                logger.info("忽略重复飞书事件: %s", message_id)
-                return
-            _seen_message_ids.add(message_id)
-            _seen_message_order.append(message_id)
-            if len(_seen_message_order) > 500:
-                _seen_message_ids.discard(_seen_message_order.popleft())
     user_id, chat_id, content = parsed
     if not chat_id or not content:
+        return
+    question = clean_mention(content)
+    if not question:
+        return
+    header = getattr(data, "header", None)
+    event_id = getattr(header, "event_id", "") or ""
+    create_time = getattr(message, "create_time", None) or ""
+    dedupe_keys = []
+    if message_id:
+        dedupe_keys.append(f"msg:{message_id}")
+    if event_id:
+        dedupe_keys.append(f"evt:{event_id}")
+    if message_id and create_time:
+        dedupe_keys.append(f"msgtime:{message_id}:{create_time}")
+    for key in dedupe_keys:
+        if not _remember_seen(key):
+            logger.info("忽略重复飞书事件: %s", key)
+            return
+    if _is_recent_question(user_id, chat_id, question):
+        logger.info("忽略短时间内重复的飞书问题: %s", question[:30])
         return
     handle_feishu_text(user_id, chat_id, content)
 

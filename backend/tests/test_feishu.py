@@ -220,3 +220,66 @@ def test_handle_feishu_text_llm_unavailable_friendly(monkeypatch):
 
     assert sent and "\u6a21\u578b\u670d\u52a1" in sent[0][1]
     assert "boom" not in sent[0][1]
+
+
+def test_on_message_ignores_duplicate_event_id(monkeypatch):
+    """同一个 event_id 重复推送时只处理一次。"""
+    data = P2ImMessageReceiveV1(
+        {
+            "schema": "2.0",
+            "header": {"event_id": "evt_duplicate_001", "event_type": "im.message.receive_v1"},
+            "event": {
+                "sender": {"sender_id": {"open_id": "ou_xiaosu"}},
+                "message": {
+                    "message_id": "om_event_id_case",
+                    "message_type": "text",
+                    "content": '{"text":"员工 2024 年假多少天？"}',
+                    "chat_id": "oc_xiaosu",
+                },
+            },
+        }
+    )
+    calls = []
+    monkeypatch.setattr(
+        feishu_bot,
+        "handle_feishu_text",
+        lambda *args: calls.append(args),
+    )
+
+    feishu_bot.on_message(data)
+    feishu_bot.on_message(data)
+
+    assert len(calls) == 1
+
+
+def test_on_message_ignores_recent_same_question(monkeypatch):
+    """同一用户短时间内发完全相同的问题，只回复一次。"""
+
+    def make_data(message_id, event_id):
+        return P2ImMessageReceiveV1(
+            {
+                "schema": "2.0",
+                "header": {"event_id": event_id, "event_type": "im.message.receive_v1"},
+                "event": {
+                    "sender": {"sender_id": {"open_id": "ou_xiaosu"}},
+                    "message": {
+                        "message_id": message_id,
+                        "message_type": "text",
+                        "content": '{"text":"重复测试问题专用 001"}',
+                        "chat_id": "oc_xiaosu",
+                    },
+                },
+            }
+        )
+
+    calls = []
+    monkeypatch.setattr(
+        feishu_bot,
+        "handle_feishu_text",
+        lambda *args: calls.append(args),
+    )
+
+    feishu_bot.on_message(make_data("om_recent_1", "evt_recent_1"))
+    feishu_bot.on_message(make_data("om_recent_2", "evt_recent_2"))
+
+    assert len(calls) == 1
