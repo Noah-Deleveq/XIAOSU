@@ -200,3 +200,28 @@ def test_process_llm_error_replies_friendly(monkeypatch):
     assert "\u6a21\u578b\u670d\u52a1" in replies[0]
     assert "boom" not in replies[0]
     assert code == dingtalk_stream.AckMessage.STATUS_OK
+
+
+def test_process_stream_error_ends_card_and_replies_friendly(monkeypatch):
+    from app.agent.qa import LLMUnavailableError
+
+    class _FailStreamEngine:
+        @property
+        def model(self):
+            return "fake-model"
+
+        def answer_stream(self, user_id, session_id, question, manual_hits=None):
+            raise LLMUnavailableError("boom")
+            yield
+
+    bot, replies = _make_bot_with_replies()
+    card = FakeCard()
+    bot.dingtalk_client = object()
+    bot.ai_markdown_card_start = lambda msg, title="": card
+    monkeypatch.setattr(mod, "_engine", _FailStreamEngine())
+
+    asyncio.run(bot.process(_make_callback("@\u5c0f\u82cf hello")))
+
+    assert card.failed is True
+    assert replies and "\u6a21\u578b\u670d\u52a1" in replies[0]
+    assert "boom" not in replies[0]
