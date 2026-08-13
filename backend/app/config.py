@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     dingtalk_bot_enabled: bool = True
     feishu_bot_enabled: bool = True
 
+    # 启动时自动补齐缺失的 backend/seed_docs 内置文档
+    auto_seed_on_start: bool = True
+
     # 数据与日志目录
     data_dir: str = "data"
     log_dir: str = "logs"

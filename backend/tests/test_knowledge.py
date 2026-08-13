@@ -112,3 +112,29 @@ def test_same_name_replace_old():
     same_name = [d for d in listed if d["name"] == "同名.txt"]
     assert len(same_name) == 1, "同名替换后后台列表应只剩新文档"
     assert same_name[0]["id"] == d2
+
+def test_seed_docs_cover_all_formats():
+    """内置种子文档覆盖 md/txt/pdf/docx 四种格式且可解析"""
+    from app.knowledge.parser import parse_text
+    from app.knowledge.seed import SEED_DIR
+
+    files = sorted(f for f in SEED_DIR.iterdir() if f.is_file())
+    exts = {f.suffix.lower().lstrip(".") for f in files}
+    assert len(files) >= 5
+    assert {"md", "txt", "pdf", "docx"} <= exts
+
+    pdf_text = parse_text("员工手册.pdf", (SEED_DIR / "员工手册.pdf").read_bytes())
+    assert "年假" in pdf_text and "报销" in pdf_text
+    docx_text = parse_text("员工手册.docx", (SEED_DIR / "员工手册.docx").read_bytes())
+    assert "考勤" in docx_text and "加班" in docx_text
+    txt_text = parse_text("考勤与请假规定.txt", (SEED_DIR / "考勤与请假规定.txt").read_bytes())
+    assert "事假" in txt_text
+
+
+def test_seed_builtin_docs_skips_existing(monkeypatch):
+    """内置文档都已入库时，启动自动导入不应重复灌入"""
+    import app.knowledge.seed as seed_mod
+
+    existing = [{"name": p.name} for p in seed_mod.SEED_DIR.iterdir() if p.is_file()]
+    monkeypatch.setattr(seed_mod.docs, "list", lambda: existing)
+    assert seed_mod.seed_builtin_docs() == 0

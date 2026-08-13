@@ -34,6 +34,12 @@ async def lifespan(_app: FastAPI):
 
     from app.im.dingtalk_bot import start_dingtalk_bot
     from app.im.feishu_bot import start_feishu_bot
+    from app.knowledge.seed import seed_builtin_docs
+
+    if settings.auto_seed_on_start:
+        seeded = seed_builtin_docs()
+        if seeded:
+            logging.getLogger("xiaosu").info("已自动导入 %d 篇种子文档", seeded)
 
     threading.Thread(target=start_dingtalk_bot, daemon=True).start()
     threading.Thread(target=start_feishu_bot, daemon=True).start()

@@ -9,6 +9,12 @@ services:
     envVars:
       - key: LLM_PROVIDER
         value: deepseek
+      - key: DINGTALK_BOT_ENABLED
+        value: "true"
+      - key: FEISHU_BOT_ENABLED
+        value: "true"
+      - key: AUTO_SEED_ON_START
+        value: "true"
       - key: PYTHONIOENCODING
         value: utf-8
       - key: LANG

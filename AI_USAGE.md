@@ -1,6 +1,6 @@
 # AI_USAGE.md —— 我是怎么用 AI 做这个项目的
 
-> 本项目全程使用 **Claude Code**（终端里的 Claude）辅助开发。以下按笔试要求回答 5 个问题，最后附上完整的排障时间线（真实记录）。
+> 本项目主要使用 **Claude Code**（终端里的 Claude）辅助开发，最后一轮用 **Codex**（桌面端）做笔试题逐项核对、稳定性修复和线上交付。以下按笔试要求回答 5 个问题，最后附上完整的排障时间线（真实记录）。
 
 ## 1. 用了哪些 AI 工具？分别用在哪些环节？
 
@@ -11,6 +11,7 @@
 | 排障 | Claude Code | 钉钉 SDK 不回复、消息被静默丢弃等问题，把日志和现象贴给它，让它给出排查方向 |
 | 测试 | Claude Code + 人工 | 它生成 pytest 用例（Mock LLM），我补"模拟真实钉钉消息"的回归测试锁住踩过的坑 |
 | 文档 | Claude Code | README 架构图、验收对照表、AI_USAGE 草稿 |
+| 稳定性与交付核对 | Codex（桌面端） | 按笔试评分表逐项核对，补齐 PDF/Word/TXT 种子文档、启动自动导入、修复重复回复并保持线上唯一 IM 实例 |
 
 **原则：AI 写 80%，但"能跑起来"的标准由我把关**——每个模块都要求它能给我解释清楚，关键路径（拒答判定、function calling 消息流、钉钉 topic 注册）全部人工核实过。
 
@@ -58,7 +59,7 @@ AI 生成 `msg.chatbot.reply_text(...)` 来回复消息——代码看起来完�
 
 四层验证，从快到慢：
 
-1. **单元测试（Mock LLM，不依赖真实 API）**：`tests/` 里 45 条用例，用 FakeClient 替换 OpenAI client，覆盖知识库增删改、同名替换、拒答判定、工具调用循环、流式输出、钉钉 AI 卡片流式回复、引用定位、错误重试与降级、文件上传问答、可观测性、会话隔离、IM 运行开关与重复事件去重。本地 `uv run pytest tests/ -v` 全绿（实测 45 passed）。
+1. **单元测试（Mock LLM，不依赖真实 API）**：`tests/` 里 47 条用例，用 FakeClient 替换 OpenAI client，覆盖知识库增删改、同名替换、拒答判定、工具调用循环、流式输出、钉钉 AI 卡片流式回复、引用定位、错误重试与降级、文件上传问答、可观测性、会话隔离、IM 运行开关与重复事件去重。本地 `uv run pytest tests/ -v` 全绿（实测 47 passed）。
 2. **模拟真实消息的回归测试**：把踩过的坑（钉钉消息格式、topic 常量、reply 方式）固化成测试，防止 AI 后续改代码时把修好的 bug 改回来。
 3. **真实 LLM 端到端**：连真实 DeepSeek API 跑 `scripts/qa_demo.py`，验证 RAG 引用格式、function calling 工具选择是否符合预期（commit `c61e0a2` 记录全量通过）。
 4. **真实钉钉联调**：本地起 Stream 长连接，私聊实测 7.1-7.5 验收清单（年假、报销、工具调用、多轮指代、拒答、Key 失效兜底），确认机器人在真实环境可用。
@@ -93,3 +94,8 @@ AI 生成 `msg.chatbot.reply_text(...)` 来回复消息——代码看起来完�
   - 教训：SDK「看起来对的用法」可能全错，必须以源码/官方常量为准，并写回归测试锁死（模拟真实钉钉消息走 process 全链路）。
 - **Web 管理后台（M5）**：React 19 + Vite 6 + Tailwind v4（`@tailwindcss/vite` 插件）；四页（文档/聊天/日志/设置）；vite proxy `/api → :8000` 联调。
 - 环境坑：npm 11 默认阻止依赖 postinstall（esbuild `allow-scripts` 警告）——不影响构建（二进制走 optionalDependencies）；PowerShell `Copy-Item` 目录复制到已存在目标会整体嵌套。
+### 2026-08-13 会话（Codex：笔试核对 + 稳定性交付）
+
+- **重复回复根因**：本地与线上同时连接同一个钉钉/飞书应用，两边各处理一条。决策是让线上 Railway 作为唯一 IM 实例，本地 `.env` 默认 `DINGTALK_BOT_ENABLED=false` / `FEISHU_BOT_ENABLED=false`，并用 `/api/im/status` + `/api/im/toggle` 运行期控制。
+- **种子文档补齐**：`backend/seed_docs` 从 3 篇 Markdown 扩到 8 篇，覆盖 Markdown / TXT / PDF / Word 四种格式；启动时自动补齐缺失种子文档，Railway 重建后在线 Demo 仍可当场提问。
+- **修脚本坑**：`backend/scripts/seed_data.sh` 原来有一个损坏的 `cd ""/bin/../backend"`，改为标准相对路径；`seed_upload.py` 增加同名旧记录清理，重复导入不会让文档列表残留重复项。

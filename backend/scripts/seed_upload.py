@@ -20,6 +20,7 @@ def main() -> None:
             text = parse_text(name, fh.read())
         doc_id = str(uuid.uuid4())[:8]
         n = index.index_doc(doc_id, name, text)
+        docs.delete_by_name(name)
         docs.upsert(doc_id, name, name.rsplit(".", 1)[-1].lower(), "indexed")
         print(f"  {name}: {n} chunks")
     print("seed 完成")

@@ -1,6 +1,8 @@
 # 小苏 · 公司内部 AI 助手
 
-基于公司内部文档与系统的 AI 助手，通过钉钉提问即可获得带引用的回答；Web 后台管理文档与对话日志。
+基于公司内部文档与系统的 AI 助手，员工可在钉钉 / 飞书里 @小苏 提问并获得带引用的回答；管理员通过 Web 后台维护知识库、查看对话日志。
+
+![Web 管理后台截图](docs/screenshot.png)
 
 ## 技术栈
 
@@ -17,15 +19,15 @@
 
 ## 快速开始
 
-1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key（可配多家供应商）、钉钉 AppKey/Secret
-2. 安装依赖：`cd backend && uv sync`；前端 `cd web && pnpm install`
-3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`；前后端一起起可运行 `sh scripts/start_web.sh`
-   - HTTP 服务：http://localhost:8000（接口文档 /docs）
-   - 钉钉机器人：启动后自动连接，钉钉里 **@小苏** 提问即可（单聊/群聊都行）
-   - 飞书机器人：启动后自动连接，飞书里 **@小苏** 提问即可（单聊/群聊都行）
-4. 上传文档：`POST /api/docs`（或后台页面），之后即可问答
+1. 配置 `backend/.env`（复制 `.env.example`）：LLM API Key（可配多家供应商）、钉钉 / 飞书密钥。
+2. 安装依赖：`cd backend && uv sync`；前端 `cd web && pnpm install`。
+3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`；前后端一起起可运行 `sh scripts/start_web.sh`。
+   - HTTP 服务：http://localhost:8000（接口文档 /docs），浏览器打开 http://localhost:5173 是管理后台。
+   - 启动时会自动补齐 `backend/seed_docs` 下缺失的 8 篇种子文档（Markdown / TXT / PDF / Word），无需手动上传即可演示。
+   - 本地默认关闭 IM 机器人（`DINGTALK_BOT_ENABLED=false`、`FEISHU_BOT_ENABLED=false`），线上 Demo 作为唯一 IM 实例，避免本地和线上各回一条；如果你没有线上实例，把这两项改为 `true` 即可本地直连。
+4. 也可以手动上传文档：`POST /api/docs`（或后台页面），之后即可问答。
 
-常用命令：`sh scripts/seed_data.sh` 生成并导入种子文档；`sh scripts/test.sh` 跑测试；`sh scripts/deploy.sh` 构建产物。
+常用命令：`sh scripts/seed_data.sh` 生成并导入种子文档（含 PDF/Word/TXT）；`sh scripts/test.sh` 跑测试；`sh scripts/deploy.sh` 构建产物。
 
 ## 功能
 
@@ -42,10 +44,12 @@
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 45 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 47 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 在线 Demo
+
+- **当前线上 Demo**：https://xiaosu-production.up.railway.app/（Web 管理后台 + 备用聊天；钉钉 / 飞书机器人由线上实例独占，本地不要重复开启）
 
 - **临时最快（免费）**：先 `sh scripts/deploy.sh` 构建前端，再 `sh scripts/start.sh` 启动后端；本地安装 [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)，执行：
 
@@ -72,6 +76,11 @@ cd backend && uv run pytest tests/ -v   # 45 个用例，Mock LLM，不依赖真
 2. Render 会读取根目录 `render.yaml` 自动创建服务。
 3. 首次创建时按提示填写 `DEEPSEEK_API_KEY`、钉钉和飞书密钥。
 4. 部署完成后，打开 Render 给的 `https://xxx.onrender.com` 即可。
+
+## Roadmap
+
+- 已完成：知识库问答、工具调用、钉钉 + 飞书双 IM、Web 管理后台、多模型、MCP、可观测性、自动化评测。
+- 下一步：接入 Langfuse/OpenTelemetry 导出、用户权限与审计、扫描版 PDF OCR、企业微信第三端、会话数据自动归档。
 
 ## 目录结构
 
@@ -191,4 +200,4 @@ uv run python scripts/eval.py --limit 5  # 快速试跑
 | 7.3 多轮对话 | 按 user+session 保存历史 | 先问「张伟」，再问「他上周来上班几天」 |
 | 7.4 拒答 | 检索不到绝不编造 | 问「CEO 的家庭住址」 |
 | 7.5 Key 失效兜底 | IM 返回友好错误 | `.env` 改错 Key 重启后提问 |
-| 7.6 后台日志/文档管理 | Web 后台四页 | 浏览器 http://localhost:5173 |
+| 7.6 后台日志/文档管理 | Web 后台五页 | 浏览器 http://localhost:5173 |
