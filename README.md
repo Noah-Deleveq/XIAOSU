@@ -30,7 +30,7 @@
 ## 功能
 
 - 文档知识库：上传/列表/删除（PDF/Word/MD/TXT），同名替换
-- 智能问答：RAG 检索 + 引用来源（Web 可点击查看原文并高亮）+ 拒答 + 多轮（按用户隔离）+ 流式输出（Web SSE `/api/chat/stream`、钉钉 AI 卡片打字机、飞书 AI 卡片打字机）
+- 智能问答：RAG 检索 + 引用来源（Web 可点击查看原文并高亮）+ 拒答 + 多轮（按用户隔离）+ 流式输出（Web SSE `/api/chat/stream`、钉钉 AI 卡片打字机）
 - 文件上传问答：上传 Markdown/TXT/PDF/Word 后直接针对该文件提问，同样支持流式输出
 - 工具调用：员工信息 / 考勤 / 销售订单 / 当前时间（mock 内部 API）
 - IM 多端：钉钉 Stream + 飞书 WebSocket 长连接共用同一套问答引擎
@@ -41,7 +41,7 @@
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 42 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 38 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 在线 Demo
@@ -96,7 +96,7 @@ backend/app/
 
 - 配置：`backend/.env` 里 `FEISHU_APP_ID` / `FEISHU_APP_SECRET`
 - 接收方式：飞书官方 **WebSocket 长连接**，无需公网 URL、HTTPS、内网穿透
-- 消息流：员工在飞书里 @小苏 → 长连接收到消息 → 小苏问答引擎 → AI 卡片打字机回复（含引用来源；卡片失败自动回退文本）
+- 消息流：员工在飞书里 @小苏 → 长连接收到消息 → 小苏问答引擎 → 文本回复（含引用来源）
 
 ## Web 管理后台（M5）
 

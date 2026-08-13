@@ -25,7 +25,6 @@
 
 - 钉钉机器人 Stream 模式：https://open.dingtalk.com/document/orgapp/stream-mode
 - 飞书机器人长连接：https://open.feishu.cn/document/server-docs/im-v1/message-receive-event/event-subscription-configure
-- 飞书交互卡片：https://open.feishu.cn/document/uAjLw4CM/ukzMukzMukzM/feishu-cards/feishu-card-cardkit/feishu-cardkit-overview
 - OpenAI 兼容接口与工具调用：https://platform.openai.com/docs/guides/function-calling
 
 如果评审时发现某段代码与公开实现相似，通常来自上述官方文档或 SDK 的标准调用方式；本项目的业务逻辑、知识库索引、问答编排和 IM 消息处理均为独立实现。

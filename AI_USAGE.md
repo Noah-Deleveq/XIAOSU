@@ -58,7 +58,7 @@ AI 生成 `msg.chatbot.reply_text(...)` 来回复消息——代码看起来完�
 
 四层验证，从快到慢：
 
-1. **单元测试（Mock LLM，不依赖真实 API）**：`tests/` 里 42 条用例，用 FakeClient 替换 OpenAI client，覆盖知识库增删改、同名替换、拒答判定、工具调用循环、流式输出、钉钉 AI 卡片流式回复、飞书 AI 卡片流式回复、引用定位、错误重试与降级、文件上传问答、可观测性、会话隔离。本地 `uv run pytest tests/ -v` 全绿（实测 42 passed）。
+1. **单元测试（Mock LLM，不依赖真实 API）**：`tests/` 里 38 条用例，用 FakeClient 替换 OpenAI client，覆盖知识库增删改、同名替换、拒答判定、工具调用循环、流式输出、钉钉 AI 卡片流式回复、引用定位、错误重试与降级、文件上传问答、可观测性、会话隔离。本地 `uv run pytest tests/ -v` 全绿（实测 38 passed）。
 2. **模拟真实消息的回归测试**：把踩过的坑（钉钉消息格式、topic 常量、reply 方式）固化成测试，防止 AI 后续改代码时把修好的 bug 改回来。
 3. **真实 LLM 端到端**：连真实 DeepSeek API 跑 `scripts/qa_demo.py`，验证 RAG 引用格式、function calling 工具选择是否符合预期（commit `c61e0a2` 记录全量通过）。
 4. **真实钉钉联调**：本地起 Stream 长连接，私聊实测 7.1-7.5 验收清单（年假、报销、工具调用、多轮指代、拒答、Key 失效兜底），确认机器人在真实环境可用。
