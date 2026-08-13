@@ -184,3 +184,19 @@ def test_process_ignores_disabled_channel(monkeypatch):
         assert status == "DISABLED"
     finally:
         monkeypatch.setitem(state.im_enabled, "dingtalk", True)
+
+
+def test_process_llm_error_replies_friendly(monkeypatch):
+    from app.agent.qa import LLMUnavailableError
+
+    class _FailEngine:
+        def answer(self, user_id, session_id, question):
+            raise LLMUnavailableError("boom")
+
+    monkeypatch.setattr(mod, "_engine", _FailEngine())
+    bot, replies = _make_bot_with_replies()
+    code, status = asyncio.run(bot.process(_make_callback("@\u5c0f\u82cf hello")))
+    assert replies
+    assert "\u6a21\u578b\u670d\u52a1" in replies[0]
+    assert "boom" not in replies[0]
+    assert code == dingtalk_stream.AckMessage.STATUS_OK

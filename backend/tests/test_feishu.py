@@ -199,3 +199,24 @@ def test_on_message_ignores_disabled_channel(monkeypatch):
         assert calls == []
     finally:
         monkeypatch.setitem(state.im_enabled, "feishu", True)
+
+
+def test_handle_feishu_text_llm_unavailable_friendly(monkeypatch):
+    from app.agent.qa import LLMUnavailableError
+
+    class _FailEngine:
+        def answer(self, user_id, session_id, question, manual_hits=None):
+            raise LLMUnavailableError("boom")
+
+    monkeypatch.setattr(feishu_bot, "_engine", _FailEngine())
+    sent = []
+    monkeypatch.setattr(
+        feishu_bot,
+        "send_feishu_text",
+        lambda chat_id, content: sent.append((chat_id, content)),
+    )
+
+    feishu_bot.handle_feishu_text("ou_xiaosu", "oc_xiaosu", "@\u5c0f\u82cf hello")
+
+    assert sent and "\u6a21\u578b\u670d\u52a1" in sent[0][1]
+    assert "boom" not in sent[0][1]

@@ -5,6 +5,7 @@ import time
 from openai import (
     APIConnectionError,
     APITimeoutError,
+    AuthenticationError,
     InternalServerError,
     OpenAI,
     RateLimitError,
@@ -131,6 +132,8 @@ class QaEngine:
                 last_error = e
                 if attempt < settings.llm_max_retries:
                     time.sleep(min(0.3 * (2**attempt), 1.5))
+            except AuthenticationError as e:
+                raise LLMUnavailableError("模型服务暂时不可用，请稍后再试。") from e
         raise LLMUnavailableError(f"模型服务暂时不可用: {last_error}") from last_error
 
     def answer(

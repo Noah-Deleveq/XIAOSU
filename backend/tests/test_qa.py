@@ -380,3 +380,45 @@ def test_multiturn_pronoun_injects_employee_id():
     engine.answer("u1", "s-pro-2", "他上周来上班几天？")
     user_msgs = [m["content"] for m in fake.last_messages if m["role"] == "user"]
     assert any("员工编号 001" in m and "指代" in m for m in user_msgs)
+
+
+def test_llm_auth_error_raises_friendly_unavailable():
+    import httpx
+    from openai import AuthenticationError
+
+    from app.agent.qa import LLMUnavailableError, QaEngine
+    from app.config import settings
+    from app.knowledge.indexer import VectorIndex
+    from app.session.store import SessionStore
+
+    class _AuthFailClient:
+        @property
+        def chat(self):
+            return self
+
+        @property
+        def completions(self):
+            return self
+
+        def create(self, **kwargs):
+            raise AuthenticationError(
+                "Incorrect API key",
+                response=httpx.Response(
+                    401,
+                    request=httpx.Request("POST", "http://example.com"),
+                ),
+                body={"error": {"message": "Incorrect API key"}},
+            )
+
+    engine = QaEngine(
+        VectorIndex(f"{settings.data_dir}/chroma"),
+        SessionStore(f"{settings.data_dir}/sessions.db"),
+        client=_AuthFailClient(),
+    )
+    engine._ensure_client()
+    try:
+        engine._call_llm_once([])
+    except LLMUnavailableError as e:
+        assert "\u6a21\u578b\u670d\u52a1" in str(e)
+        return
+    raise AssertionError("AuthenticationError should be converted to LLMUnavailableError")

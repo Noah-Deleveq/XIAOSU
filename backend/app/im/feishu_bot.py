@@ -8,7 +8,7 @@ from typing import Any
 
 from app.agent.qa import LLMUnavailableError, QaEngine
 from app.config import settings
-from app.im.common import build_reply, clean_mention
+from app.im.common import build_reply, clean_mention, friendly_error_text
 from app import state
 from app.state import index, sessions, traces
 
@@ -115,7 +115,7 @@ def handle_feishu_text(user_id: str, chat_id: str, content: str) -> None:
     except Exception as e:  # noqa: BLE001
         logger.exception("飞书处理消息失败")
         try:
-            send_feishu_text(chat_id, f"抱歉，处理你的问题出错了：{e}")
+            send_feishu_text(chat_id, friendly_error_text(e))
         except Exception:  # noqa: BLE001
             pass
         traces.add(

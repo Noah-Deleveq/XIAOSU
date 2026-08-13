@@ -8,7 +8,7 @@ import dingtalk_stream
 from dingtalk_stream import AckMessage, ChatbotHandler, ChatbotMessage
 
 from app.agent.qa import QaEngine
-from app.im.common import build_reply, clean_mention
+from app.im.common import build_reply, clean_mention, friendly_error_text
 from app import state
 from app.state import index, sessions, traces
 
@@ -98,7 +98,7 @@ class XiaoSuBot(ChatbotHandler):
                 except Exception:  # noqa: BLE001
                     pass
             try:
-                self.reply_text(f"抱歉，处理你的问题出错了：{e}", msg)
+                self.reply_text(friendly_error_text(e), msg)
             except Exception:  # noqa: BLE001
                 pass
         return AckMessage.STATUS_OK, "OK"

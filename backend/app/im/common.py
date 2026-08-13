@@ -16,3 +16,9 @@ def build_reply(result: dict) -> str:
         sources = "、".join(dict.fromkeys(refs))
         reply += f"\n\n📎 来源：{sources}"
     return reply
+
+
+def friendly_error_text(error: Exception) -> str:
+    if error.__class__.__name__ == "LLMUnavailableError":
+        return "模型服务暂时不可用，请稍后再试。"
+    return "抱歉，处理你的问题出错了，请稍后再试。"
