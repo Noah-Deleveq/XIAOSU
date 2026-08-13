@@ -344,3 +344,11 @@ def test_mock_api_http():
     assert client.get("/api/employee/999").status_code == 404
     assert client.get("/api/attendance/001").status_code == 200
     assert client.get("/api/orders/004").status_code == 200
+
+
+def test_system_prompt_requires_direct_tool_call():
+    """员工/考勤类问题必须直接调用工具，不能只承诺帮用户查询"""
+    from app.agent.qa import SYSTEM_PROMPT
+
+    assert "query_employee" in SYSTEM_PROMPT
+    assert "不能只说“我可以帮您查询”" in SYSTEM_PROMPT
