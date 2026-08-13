@@ -24,7 +24,7 @@
 3. 启动：双击 `scripts/start.bat`（Windows），或 `sh scripts/start.sh`；前后端一起起可运行 `sh scripts/start_web.sh`。
    - HTTP 服务：http://localhost:8000（接口文档 /docs），浏览器打开 http://localhost:5173 是管理后台。
    - 启动时会自动补齐 `backend/seed_docs` 下缺失的 8 篇种子文档（Markdown / TXT / PDF / Word），无需手动上传即可演示。
-   - 本地默认关闭 IM 机器人（`DINGTALK_BOT_ENABLED=false`、`FEISHU_BOT_ENABLED=false`），线上 Demo 作为唯一 IM 实例，避免本地和线上各回一条；如果你没有线上实例，把这两项改为 `true` 即可本地直连。
+  - 本地直连钉钉 / 飞书时，把 `DINGTALK_BOT_ENABLED=true`、`FEISHU_BOT_ENABLED=true`。
 4. 也可以手动上传文档：`POST /api/docs`（或后台页面），之后即可问答。
 
 常用命令：`sh scripts/seed_data.sh` 生成并导入种子文档（含 PDF/Word/TXT）；`sh scripts/test.sh` 跑测试；`sh scripts/deploy.sh` 构建产物。
@@ -47,9 +47,9 @@
 cd backend && uv run pytest tests/ -v   # 52 个用例，Mock LLM，不依赖真实 API
 ```
 
-## 在线 Demo
+## Demo 与部署
 
-- **当前线上 Demo**：https://xiaosu-production.up.railway.app/（Web 管理后台 + 备用聊天；钉钉 / 飞书机器人由线上实例独占，本地不要重复开启）
+- **本地 Demo**：启动后打开 http://localhost:5173（Web 管理后台 + 备用聊天），钉钉 / 飞书由本地实例直连。
 
 - **临时最快（免费）**：先 `sh scripts/deploy.sh` 构建前端，再 `sh scripts/start.sh` 启动后端；本地安装 [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)，执行：
 
@@ -59,16 +59,9 @@ cd backend && uv run pytest tests/ -v   # 52 个用例，Mock LLM，不依赖真
 
   它会生成一个 `https://xxx.trycloudflare.com` 临时地址，浏览器打开就是管理后台和备用聊天。地址只在 cloudflared 运行期间有效，适合面试演示。
 
-- **长期部署**：把仓库放到 Railway / Render / 自己的服务器，执行 `scripts/deploy.sh` 后启动 `scripts/start.sh`，然后把公网地址发给面试官。钉钉和飞书都是长连接主动外连，不需要配置公网回调。
+- **长期部署**：把仓库放到 Render / 自己的服务器，执行 `scripts/deploy.sh` 后启动 `scripts/start.sh`，然后把公网地址发给面试官。钉钉和飞书都是长连接主动外连，不需要配置公网回调。
 
 - **实在不想部署**：按笔试要求录一段 30 秒以内的演示视频也可以。
-
-### Railway
-
-1. 把仓库推送到 GitHub，在 Railway 新建项目并选择 `Deploy from GitHub repo`。
-2. Railway 会自动识别根目录 `Dockerfile`。
-3. 在项目变量里填 `DEEPSEEK_API_KEY`、`DINGTALK_APP_KEY/SECRET`、`FEISHU_APP_ID/SECRET`。
-4. 部署完成后，Railway 会给出 `https://xxx.up.railway.app`，直接打开就是管理后台和备用聊天。
 
 ### Render
 
@@ -101,14 +94,14 @@ backend/app/
 - 配置：`backend/.env` 里 `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET`
 - 消息流：@小苏 → 去 @ → RAG/工具 → AI 卡片打字机回复（含引用来源；卡片失败自动回退文本）
 - 流式卡片走钉钉 OpenAPI；卡片不可用时回退 session_webhook 文本回复
-- 运行开关：`DINGTALK_BOT_ENABLED=true/false`；本地与线上共用同一钉钉应用时，同一时间只保留一个实例
+- 运行开关：`DINGTALK_BOT_ENABLED=true/false`；同一时间只保留一个实例，避免重复回复
 
 ## 飞书集成
 
 - 配置：`backend/.env` 里 `FEISHU_APP_ID` / `FEISHU_APP_SECRET`
 - 接收方式：飞书官方 **WebSocket 长连接**，无需公网 URL、HTTPS、内网穿透
 - 消息流：员工在飞书里 @小苏 → 长连接收到消息 → 小苏问答引擎 → 文本回复（含引用来源）
-- 运行开关：`FEISHU_BOT_ENABLED=true/false`；本地与线上共用同一飞书应用时，同一时间只保留一个实例，避免两边各回一条
+- 运行开关：`FEISHU_BOT_ENABLED=true/false`；同一时间只保留一个实例，避免重复回复
 
 ## Web 管理后台（M5）
 
