@@ -9,6 +9,7 @@ from dingtalk_stream import AckMessage, ChatbotHandler, ChatbotMessage
 
 from app.agent.qa import QaEngine
 from app.im.common import build_reply, clean_mention
+from app import state
 from app.state import index, sessions, traces
 
 logger = logging.getLogger("xiaosu.im")
@@ -18,6 +19,8 @@ _engine = QaEngine(index, sessions)
 
 class XiaoSuBot(ChatbotHandler):
     async def process(self, callback: dingtalk_stream.CallbackMessage):
+        if not state.im_enabled.get("dingtalk", True):
+            return AckMessage.STATUS_OK, "DISABLED"
         msg = ChatbotMessage.from_dict(callback.data)
         text = getattr(msg.text, "content", "") or ""
         question = clean_mention(text)
@@ -123,6 +126,9 @@ def start_dingtalk_bot() -> None:
 
     if not settings.dingtalk_app_key or not settings.dingtalk_app_secret:
         logger.warning("未配置 DINGTALK_APP_KEY/SECRET，跳过钉钉连接")
+        return
+    if not state.im_enabled.get("dingtalk", settings.dingtalk_bot_enabled):
+        logger.info("钉钉机器人已禁用，跳过连接")
         return
     client = build_stream_client()
     logger.info("钉钉 Stream 机器人启动中...")

@@ -3,11 +3,13 @@ import json
 import logging
 import time
 from collections import deque
+from threading import Lock
 from typing import Any
 
 from app.agent.qa import LLMUnavailableError, QaEngine
 from app.config import settings
 from app.im.common import build_reply, clean_mention
+from app import state
 from app.state import index, sessions, traces
 
 logger = logging.getLogger("xiaosu.feishu")
@@ -16,6 +18,7 @@ _engine = QaEngine(index, sessions)
 _api_client: Any | None = None
 _seen_message_ids: set[str] = set()
 _seen_message_order: deque[str] = deque()
+_seen_lock = Lock()
 
 
 def get_api_client() -> Any:
@@ -126,6 +129,9 @@ def handle_feishu_text(user_id: str, chat_id: str, content: str) -> None:
 
 
 def on_message(data: Any) -> None:
+    if not state.im_enabled.get("feishu", settings.feishu_bot_enabled):
+        logger.info("飞书机器人已禁用，忽略事件")
+        return
     parsed = extract_text(data)
     event = data.event
     message = event.message if event is not None else None
@@ -140,13 +146,14 @@ def on_message(data: Any) -> None:
         return
     message_id = message.message_id if message is not None else ""
     if message_id:
-        if message_id in _seen_message_ids:
-            logger.info("忽略重复飞书事件: %s", message_id)
-            return
-        _seen_message_ids.add(message_id)
-        _seen_message_order.append(message_id)
-        if len(_seen_message_order) > 500:
-            _seen_message_ids.discard(_seen_message_order.popleft())
+        with _seen_lock:
+            if message_id in _seen_message_ids:
+                logger.info("忽略重复飞书事件: %s", message_id)
+                return
+            _seen_message_ids.add(message_id)
+            _seen_message_order.append(message_id)
+            if len(_seen_message_order) > 500:
+                _seen_message_ids.discard(_seen_message_order.popleft())
     user_id, chat_id, content = parsed
     if not chat_id or not content:
         return
@@ -174,6 +181,9 @@ def start_feishu_bot() -> None:
     """启动飞书长连接（阻塞，放独立线程运行）。"""
     if not settings.feishu_app_id or not settings.feishu_app_secret:
         logger.warning("未配置 FEISHU_APP_ID/SECRET，跳过飞书连接")
+        return
+    if not state.im_enabled.get("feishu", settings.feishu_bot_enabled):
+        logger.info("飞书机器人已禁用，跳过连接")
         return
     client = build_ws_client()
     logger.info("飞书机器人启动中...")

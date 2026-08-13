@@ -9,7 +9,7 @@ from app.agent.qa import LLMUnavailableError, QaEngine
 from app.config import settings
 from app.knowledge.indexer import chunk_text
 from app.knowledge.parser import parse_text
-from app.schemas import ChatRequest, ProviderSwitch
+from app.schemas import ChatRequest, ImToggleRequest, ProviderSwitch
 from app import state
 from app.state import index, sessions, traces
 
@@ -281,6 +281,7 @@ def settings_get() -> dict:
         "feishu_configured": bool(
             settings.feishu_app_id and settings.feishu_app_secret
         ),
+        "im_enabled": dict(state.im_enabled),
     }
 
 
@@ -291,3 +292,33 @@ def settings_set_provider(payload: ProviderSwitch) -> dict:
         raise HTTPException(400, f"未知供应商: {payload.name}")
     state.current_provider = payload.name
     return {"ok": True, "current": state.current_provider}
+
+
+@router.get("/api/im/status")
+def im_status() -> dict:
+    """查看 IM 运行开关与凭据状态"""
+    return {
+        "channels": {
+            "dingtalk": state.im_enabled.get(
+                "dingtalk", settings.dingtalk_bot_enabled
+            ),
+            "feishu": state.im_enabled.get("feishu", settings.feishu_bot_enabled),
+        },
+        "configured": {
+            "dingtalk": bool(
+                settings.dingtalk_app_key and settings.dingtalk_app_secret
+            ),
+            "feishu": bool(settings.feishu_app_id and settings.feishu_app_secret),
+        },
+    }
+
+
+@router.post("/api/im/toggle")
+def im_toggle(payload: ImToggleRequest) -> dict:
+    """运行时开关 IM 机器人，避免本地与线上实例同时回复"""
+    state.set_im_enabled(payload.channel, payload.enabled)
+    return {
+        "ok": True,
+        "channel": payload.channel,
+        "enabled": state.im_enabled[payload.channel],
+    }

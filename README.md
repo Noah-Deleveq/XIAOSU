@@ -34,6 +34,7 @@
 - 文件上传问答：上传 Markdown/TXT/PDF/Word 后直接针对该文件提问，同样支持流式输出
 - 工具调用：员工信息 / 考勤 / 销售订单 / 当前时间（mock 内部 API）
 - IM 多端：钉钉 Stream + 飞书 WebSocket 长连接共用同一套问答引擎
+- IM 运行开关：`/api/im/status` + `/api/im/toggle`，同一时间只保留一个实例在线，避免重复回复
 - 对话日志：`/api/logs` 全量查看（含 Token / 成本 / 工具调用）
 - 可观测性：`/api/traces` 记录每次问答/上传的耗时、Token、成本、工具与错误，后台可查看请求链路
 - 错误容错：LLM 超时/限流自动重试，重试失败后降级为友好提示，不直接 500
@@ -41,7 +42,7 @@
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 41 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 45 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 在线 Demo
@@ -91,12 +92,14 @@ backend/app/
 - 配置：`backend/.env` 里 `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET`
 - 消息流：@小苏 → 去 @ → RAG/工具 → AI 卡片打字机回复（含引用来源；卡片失败自动回退文本）
 - 流式卡片走钉钉 OpenAPI；卡片不可用时回退 session_webhook 文本回复
+- 运行开关：`DINGTALK_BOT_ENABLED=true/false`；本地与线上共用同一钉钉应用时，同一时间只保留一个实例
 
 ## 飞书集成
 
 - 配置：`backend/.env` 里 `FEISHU_APP_ID` / `FEISHU_APP_SECRET`
 - 接收方式：飞书官方 **WebSocket 长连接**，无需公网 URL、HTTPS、内网穿透
 - 消息流：员工在飞书里 @小苏 → 长连接收到消息 → 小苏问答引擎 → 文本回复（含引用来源）
+- 运行开关：`FEISHU_BOT_ENABLED=true/false`；本地与线上共用同一飞书应用时，同一时间只保留一个实例，避免两边各回一条
 
 ## Web 管理后台（M5）
 

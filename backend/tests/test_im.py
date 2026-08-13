@@ -5,6 +5,7 @@ import json
 import dingtalk_stream
 from dingtalk_stream import CallbackMessage
 
+from app import state
 from app.im import dingtalk_bot as mod
 from app.im.dingtalk_bot import XiaoSuBot, build_reply, build_stream_client, clean_mention
 
@@ -170,3 +171,16 @@ def test_stream_client_registers_correct_topic():
     assert list(client.callback_handler_map.keys()) == [
         dingtalk_stream.ChatbotMessage.TOPIC
     ]
+
+
+def test_process_ignores_disabled_channel(monkeypatch):
+    """运行期关闭钉钉机器人后，消息直接确认但不回复"""
+    bot, replies = _make_bot_with_replies()
+    monkeypatch.setitem(state.im_enabled, "dingtalk", False)
+    try:
+        code, status = asyncio.run(bot.process(_make_callback("@小苏 现在几点？")))
+        assert replies == []
+        assert code == dingtalk_stream.AckMessage.STATUS_OK
+        assert status == "DISABLED"
+    finally:
+        monkeypatch.setitem(state.im_enabled, "dingtalk", True)

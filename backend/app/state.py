@@ -10,5 +10,16 @@ sessions = SessionStore(f"{settings.data_dir}/sessions.db")
 docs = DocStore(f"{settings.data_dir}/docs.db")
 traces = TraceStore(f"{settings.data_dir}/traces.db")
 
-# 运行时 LLM 供应商（默认取 .env 的 LLM_PROVIDER，可在 Web 后台切换，重启后恢复 .env 值）
-current_provider: str = settings.llm_provider
+current_provider: str = settings.llm_provider if settings.llm_provider in settings.provider_names() else "deepseek"
+
+# IM 机器人运行开关：默认跟随 .env，可在运行时通过 /api/im/toggle 切换
+im_enabled: dict[str, bool] = {
+    "dingtalk": settings.dingtalk_bot_enabled,
+    "feishu": settings.feishu_bot_enabled,
+}
+
+
+def set_im_enabled(channel: str, enabled: bool) -> None:
+    if channel not in im_enabled:
+        raise ValueError(f"未知 IM 通道: {channel}")
+    im_enabled[channel] = bool(enabled)

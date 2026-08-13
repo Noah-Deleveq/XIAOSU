@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     feishu_app_id: str = ""
     feishu_app_secret: str = ""
 
+    # IM 机器人运行开关：同一应用同一时刻建议只保留一个实例在线，避免两边各回一条
+    dingtalk_bot_enabled: bool = True
+    feishu_bot_enabled: bool = True
+
     # 数据与日志目录
     data_dir: str = "data"
     log_dir: str = "logs"
@@ -83,6 +87,8 @@ class Settings(BaseSettings):
 
     def get_provider(self, name: str) -> ProviderConfig:
         """取某供应商配置；未单独配置时回退到旧版 LLM_* 变量，保证老 .env 仍可用"""
+        if name not in self.provider_names():
+            name = "deepseek"
         p = getattr(self, name, None)
         if not isinstance(p, ProviderConfig):
             p = ProviderConfig()

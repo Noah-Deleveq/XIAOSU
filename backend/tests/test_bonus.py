@@ -43,6 +43,14 @@ def test_provider_flat_env_vars(monkeypatch):
     assert s.get_provider("deepseek").api_key == "sk-flat"
 
 
+def test_get_provider_falls_back_for_invalid_name():
+    """供应商名被误填成 API Key 时兜底回 deepseek，避免实例整体不可用"""
+    from app.config import settings
+
+    p = settings.get_provider("sk-not-a-provider")
+    assert p.model == "deepseek-chat"
+
+
 def test_provider_switch_api():
     """运行时切换供应商：GET 查看 / POST 切换 / 非法名 400"""
     r = client.get("/api/settings")
@@ -60,6 +68,16 @@ def test_provider_switch_api():
     assert r.status_code == 400
     # 还原，避免影响其他测试
     client.post("/api/settings/provider", json={"name": "deepseek"})
+
+
+def test_im_toggle_api():
+    """运行期开关 IM：状态可查、切换生效并还原"""
+    before = client.get("/api/im/status").json()["channels"]["feishu"]
+    r = client.post("/api/im/toggle", json={"channel": "feishu", "enabled": not before})
+    assert r.status_code == 200
+    assert r.json()["enabled"] is (not before)
+    assert client.get("/api/im/status").json()["channels"]["feishu"] is (not before)
+    client.post("/api/im/toggle", json={"channel": "feishu", "enabled": before})
 
 
 # ---------- Token 计数与成本 ----------

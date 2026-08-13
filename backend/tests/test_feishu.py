@@ -1,6 +1,7 @@
 """飞书长连接消息解析与文本回复测试"""
 from lark_oapi.api.im.v1 import P2ImMessageReceiveV1
 
+from app import state
 from app.agent.qa import LLMUnavailableError
 from app.im import feishu_bot
 
@@ -169,3 +170,32 @@ def test_on_message_ignores_duplicate_event(monkeypatch):
     feishu_bot.on_message(data)
 
     assert len(calls) == 1
+
+
+def test_on_message_ignores_disabled_channel(monkeypatch):
+    """运行期关闭飞书机器人后，事件直接忽略，不回复"""
+    data = P2ImMessageReceiveV1(
+        {
+            "event": {
+                "sender": {"sender_id": {"open_id": "ou_xiaosu"}},
+                "message": {
+                    "message_id": "om_disabled",
+                    "message_type": "text",
+                    "content": '{"text":"员工 001 是哪个部门的"}',
+                    "chat_id": "oc_xiaosu",
+                },
+            }
+        }
+    )
+    calls = []
+    monkeypatch.setattr(
+        feishu_bot,
+        "handle_feishu_text",
+        lambda *args: calls.append(args),
+    )
+    monkeypatch.setitem(state.im_enabled, "feishu", False)
+    try:
+        feishu_bot.on_message(data)
+        assert calls == []
+    finally:
+        monkeypatch.setitem(state.im_enabled, "feishu", True)
