@@ -1,6 +1,7 @@
 """飞书长连接消息解析与文本回复测试"""
 from lark_oapi.api.im.v1 import P2ImMessageReceiveV1
 
+from app.agent.qa import LLMUnavailableError
 from app.im import feishu_bot
 
 
@@ -79,6 +80,44 @@ def test_handle_feishu_text_error_fallback(monkeypatch):
     feishu_bot.handle_feishu_text("ou_xiaosu", "oc_xiaosu", "@小苏 员工每年几天年假？")
 
     assert sent and "抱歉" in sent[0][1]
+
+
+def test_handle_feishu_text_retries_llm_once(monkeypatch):
+    """首次模型连接失败时自动重试一次，避免冷启动直接报错"""
+
+    class _RetryEngine:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def answer(self, user_id: str, session_id: str, question: str, manual_hits=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise LLMUnavailableError("cold start")
+            return {
+                "answer": "根据《员工手册》，员工每年 10 天带薪年假 [1]。",
+                "references": [{"name": "员工手册.md", "text": "员工每年 10 天带薪年假"}],
+                "refused": False,
+                "used_tool": False,
+                "tools_used": [],
+                "usage": {},
+                "cost": 0,
+                "provider": "deepseek",
+                "session_id": session_id,
+            }
+
+    engine = _RetryEngine()
+    monkeypatch.setattr(feishu_bot, "_engine", engine)
+    sent = []
+    monkeypatch.setattr(
+        feishu_bot,
+        "send_feishu_text",
+        lambda chat_id, content: sent.append((chat_id, content)),
+    )
+
+    feishu_bot.handle_feishu_text("ou_xiaosu", "oc_xiaosu", "@小苏 员工每年几天年假？")
+
+    assert engine.calls == 2
+    assert sent and "10 天带薪年假" in sent[0][1]
 
 
 def test_send_feishu_text_uses_api(monkeypatch):

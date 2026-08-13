@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Any
 
-from app.agent.qa import QaEngine
+from app.agent.qa import LLMUnavailableError, QaEngine
 from app.config import settings
 from app.im.common import build_reply, clean_mention
 from app.state import index, sessions, traces
@@ -86,7 +86,12 @@ def handle_feishu_text(user_id: str, chat_id: str, content: str) -> None:
         return
     started = time.perf_counter()
     try:
-        result = _engine.answer(user_id, chat_id, question)
+        try:
+            result = _engine.answer(user_id, chat_id, question)
+        except LLMUnavailableError:
+            logger.warning("飞书首次模型调用失败，1 秒后重试")
+            time.sleep(1.0)
+            result = _engine.answer(user_id, chat_id, question)
         reply = build_reply(result)
         send_feishu_text(chat_id, reply)
         traces.add(
