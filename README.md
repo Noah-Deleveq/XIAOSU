@@ -41,7 +41,7 @@
 ## 测试
 
 ```bash
-cd backend && uv run pytest tests/ -v   # 40 个用例，Mock LLM，不依赖真实 API
+cd backend && uv run pytest tests/ -v   # 41 个用例，Mock LLM，不依赖真实 API
 ```
 
 ## 在线 Demo

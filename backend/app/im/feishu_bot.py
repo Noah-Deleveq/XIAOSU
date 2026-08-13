@@ -2,6 +2,7 @@
 import json
 import logging
 import time
+from collections import deque
 from typing import Any
 
 from app.agent.qa import LLMUnavailableError, QaEngine
@@ -13,6 +14,8 @@ logger = logging.getLogger("xiaosu.feishu")
 
 _engine = QaEngine(index, sessions)
 _api_client: Any | None = None
+_seen_message_ids: set[str] = set()
+_seen_message_order: deque[str] = deque()
 
 
 def get_api_client() -> Any:
@@ -135,6 +138,15 @@ def on_message(data: Any) -> None:
     )
     if parsed is None:
         return
+    message_id = message.message_id if message is not None else ""
+    if message_id:
+        if message_id in _seen_message_ids:
+            logger.info("忽略重复飞书事件: %s", message_id)
+            return
+        _seen_message_ids.add(message_id)
+        _seen_message_order.append(message_id)
+        if len(_seen_message_order) > 500:
+            _seen_message_ids.discard(_seen_message_order.popleft())
     user_id, chat_id, content = parsed
     if not chat_id or not content:
         return

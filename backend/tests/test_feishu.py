@@ -141,3 +141,31 @@ def test_send_feishu_text_uses_api(monkeypatch):
 
     monkeypatch.setattr(feishu_bot, "get_api_client", lambda: _Client())
     feishu_bot.send_feishu_text("oc_xiaosu", "你好")
+
+
+def test_on_message_ignores_duplicate_event(monkeypatch):
+    """同一个 message_id 重复推送时只处理一次，避免飞书回复两条"""
+    data = P2ImMessageReceiveV1(
+        {
+            "event": {
+                "sender": {"sender_id": {"open_id": "ou_xiaosu"}},
+                "message": {
+                    "message_id": "om_duplicate",
+                    "message_type": "text",
+                    "content": '{"text":"员工 001 是哪个部门的"}',
+                    "chat_id": "oc_xiaosu",
+                },
+            }
+        }
+    )
+    calls = []
+    monkeypatch.setattr(
+        feishu_bot,
+        "handle_feishu_text",
+        lambda *args: calls.append(args),
+    )
+
+    feishu_bot.on_message(data)
+    feishu_bot.on_message(data)
+
+    assert len(calls) == 1
